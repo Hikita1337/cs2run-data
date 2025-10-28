@@ -1,39 +1,40 @@
-// .github/scripts/update-data.js
-
-const fs = require("fs");
-const path = require("path");
-
-const DATA_PATH = path.join(__dirname, "../../history.json");
-
-// Функция для имитации получения новых данных
-async function fetchData() {
-  // ⚠️ Здесь поставь реальную ссылку на парсинг
-  // или просто тестовые данные для проверки
-  return {
-    timestamp: new Date().toISOString(),
-    avg10: (Math.random() * 5).toFixed(2),
-    avg25: (Math.random() * 4).toFixed(2),
-    avg50: (Math.random() * 3).toFixed(2),
-  };
-}
+const fs = require('fs');
+const path = require('path');
 
 (async () => {
-  console.log("⏳ Обновление данных CS2Run...");
+  try {
+    const historyPath = path.join(process.cwd(), 'cs2run_history.json');
 
-  const newData = await fetchData();
-  const newContent = JSON.stringify(newData, null, 2);
+    // Читаем текущий JSON
+    let history = [];
+    if (fs.existsSync(historyPath)) {
+      const data = fs.readFileSync(historyPath, 'utf8');
+      history = JSON.parse(data);
+    }
 
-  // Проверяем — существует ли файл history.json
-  let oldContent = null;
-  if (fs.existsSync(DATA_PATH)) {
-    oldContent = fs.readFileSync(DATA_PATH, "utf8");
-  }
+    // Лог для проверки
+    console.log(`📊 Сейчас в истории ${history.length} записей`);
 
-  // Если данные изменились — обновляем файл
-  if (oldContent !== newContent) {
-    fs.writeFileSync(DATA_PATH, newContent);
-    console.log(`✅ Файл обновлён: ${newData.timestamp}`);
-  } else {
-    console.log("ℹ️ Данные не изменились — обновление пропущено");
+    // Добавляем "метку времени последнего обновления"
+    const updatedAt = new Date().toLocaleString('ru-RU', {
+      timeZone: 'Europe/Moscow'
+    });
+
+    const result = {
+      updatedAt, // например "29.10.2025, 02:14:33"
+      totalGames: history.length,
+      averageCrash: (
+        history.reduce((sum, item) => sum + item.crash, 0) / history.length
+      ).toFixed(2),
+      data: history
+    };
+
+    // Сохраняем всё в файл (теперь с метаданными)
+    fs.writeFileSync(historyPath, JSON.stringify(result, null, 2));
+    console.log(`✅ Коэффициенты обновлены (${updatedAt})`);
+
+  } catch (error) {
+    console.error('❌ Ошибка при обновлении данных:', error);
+    process.exit(1);
   }
 })();
