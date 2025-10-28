@@ -1,61 +1,42 @@
 name: Update CS2Run History
 
 on:
-  schedule:
-    - cron: "0 * * * *" # оставляем для подстраховки (каждый час)
   workflow_dispatch:
   repository_dispatch:
     types: [external_update_trigger]
-
-
-permissions:
-  contents: write  # ✅ разрешаем GitHub Actions делать push
+  # schedule:   # 🔹 если хочешь резервный запуск — раскомментируй
+  #   - cron: "0 * * * *"  # раз в час на всякий случай
 
 jobs:
-  update:
+  update-data:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}  # ✅ добавляем токен авторизации
+          node-version: '20'
 
-      - name: Fetch CS2Run API
-        run: |
-          curl -s https://cs2run.app/crash/state -o latest.json
+      - name: Install dependencies
+        run: npm install axios
 
-      - name: Parse and merge JSON
-        run: |
-          node <<'EOF'
-          const fs = require("fs");
-          const old = fs.existsSync("cs2run_history.json")
-            ? JSON.parse(fs.readFileSync("cs2run_history.json", "utf8"))
-            : [];
-          const data = JSON.parse(fs.readFileSync("latest.json", "utf8"));
-          const history = data?.data?.history ?? [];
-          const cleaned = history.map(h => {
-            const raw = h.crash ?? h.multiplier ?? h.value ?? null;
-            const num = typeof raw === "string"
-              ? parseFloat(raw.replace(/[^\d.]/g, ""))
-              : Number(raw);
-            return { id: h.id ?? null, crash: num };
-          }).filter(x => !isNaN(x.crash) && x.crash > 0);
+      - name: Fetch new CS2Run data
+        run: node .github/scripts/update-data.js
 
-          const ids = new Set(old.map(o => o.id).filter(Boolean));
-          for (const c of cleaned) {
-            if (!c.id || !ids.has(c.id)) {
-              old.push(c);
-              if (c.id) ids.add(c.id);
-            }
-          }
-          if (old.length > 20000) old.splice(0, old.length - 20000);
-          fs.writeFileSync("cs2run_history.json", JSON.stringify(old, null, 2));
-          EOF
-
-      - name: Commit & Push
+      - name: Commit & Push if data changed
         run: |
           git config user.name "GitHub Action"
-          git config user.email "action@github.com"
-          git add cs2run_history.json
-          git commit -m "Auto update $(date)" || echo "No changes to commit"
-          git push
+          git config user.email "actions@github.com"
+
+          # Проверяем, есть ли изменения
+          if git diff --quiet; then
+            echo "🟢 Нет изменений — пропускаем коммит."
+          else
+            echo "🔄 Обнаружены новые данные — сохраняем!"
+            git add data/cs2run_history.json
+            git commit -m "🔁 Update CS2Run history ($(date '+%Y-%m-%d %H:%M:%S'))"
+            git push
+          fi
