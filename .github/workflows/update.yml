@@ -2,24 +2,26 @@ name: Update CS2Run History
 
 on:
   schedule:
-    - cron: "*/6 * * * *" # каждые 6 минут
+    - cron: "*/6 * * * *" # обновление каждые 6 минут
   workflow_dispatch:
-  repository_dispatch:
-    types: [external_update_trigger]
+
+permissions:
+  contents: write # даёт GitHub Actions право пушить изменения в репозиторий
 
 jobs:
   update-data:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-
 
       - name: Fetch new CS2Run data
         run: node .github/scripts/update-data.js
