@@ -2,8 +2,11 @@ name: Update CS2Run History
 
 on:
   schedule:
-    - cron: "*/5 * * * *"  # каждые 5 минут
-  workflow_dispatch:       # запуск вручную
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write  # ✅ разрешаем GitHub Actions делать push
 
 jobs:
   update:
@@ -11,6 +14,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}  # ✅ добавляем токен авторизации
 
       - name: Fetch CS2Run API
         run: |
