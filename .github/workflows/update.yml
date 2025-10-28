@@ -1,0 +1,53 @@
+name: Update CS2Run History
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # каждые 5 минут
+  workflow_dispatch:       # запуск вручную
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Fetch CS2Run API
+        run: |
+          curl -s https://cs2run.app/crash/state -o latest.json
+
+      - name: Parse and merge JSON
+        run: |
+          node <<'EOF'
+          const fs = require("fs");
+          const old = fs.existsSync("cs2run_history.json")
+            ? JSON.parse(fs.readFileSync("cs2run_history.json", "utf8"))
+            : [];
+          const data = JSON.parse(fs.readFileSync("latest.json", "utf8"));
+          const history = data?.data?.history ?? [];
+          const cleaned = history.map(h => {
+            const raw = h.crash ?? h.multiplier ?? h.value ?? null;
+            const num = typeof raw === "string"
+              ? parseFloat(raw.replace(/[^\d.]/g, ""))
+              : Number(raw);
+            return { id: h.id ?? null, crash: num };
+          }).filter(x => !isNaN(x.crash) && x.crash > 0);
+
+          const ids = new Set(old.map(o => o.id).filter(Boolean));
+          for (const c of cleaned) {
+            if (!c.id || !ids.has(c.id)) {
+              old.push(c);
+              if (c.id) ids.add(c.id);
+            }
+          }
+          if (old.length > 20000) old.splice(0, old.length - 20000);
+          fs.writeFileSync("cs2run_history.json", JSON.stringify(old, null, 2));
+          EOF
+
+      - name: Commit & Push
+        run: |
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          git add cs2run_history.json
+          git commit -m "Auto update $(date)" || echo "No changes to commit"
+          git push
