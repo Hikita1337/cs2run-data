@@ -2,7 +2,7 @@ name: Update CS2Run History
 
 on:
   schedule:
-    - cron: "*/6 * * * *"  # каждые 6 минут
+    - cron: "*/6 * * * *" # каждые 6 минут
   workflow_dispatch:
   repository_dispatch:
     types: [external_update_trigger]
@@ -15,28 +15,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+      - name: Install jq
+        run: sudo apt-get install jq -y
 
-      - name: Update history JSON
+      - name: Update last_updated field in JSON
         run: |
           FILE="data/history.json"
 
-          # Проверяем, есть ли файл
+          # Если файла нет — создаём
           if [ ! -f "$FILE" ]; then
             echo "Создаём новый $FILE"
             echo '{"last_updated": "", "stats": {"crashes": []}}' > $FILE
           fi
 
-          # Получаем текущее время ISO с часовым поясом Омска
+          # Получаем текущее время в Омске (UTC+7)
           NOW=$(date -u +"%Y-%m-%dT%H:%M:%S+07:00")
 
-          # Обновляем last_updated в JSON
+          # Обновляем last_updated
           jq --arg now "$NOW" '.last_updated = $now' "$FILE" > tmp.$$.json && mv tmp.$$.json "$FILE"
 
-          echo "✅ last_updated обновлено на $NOW"
+          echo "✅ Обновлено время: $NOW"
 
       - name: Commit and push changes
         run: |
@@ -44,9 +42,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
           if git diff --quiet; then
-            echo "Нет изменений — коммит пропущен"
+            echo "Нет изменений — пропускаем коммит"
           else
-            git add .
+            git add data/history.json
             git commit -m "Auto-update CS2Run data [$(date)]"
             git push
           fi
