@@ -8,43 +8,31 @@ on:
     types: [external_update_trigger]
 
 jobs:
-  update-history:
+  update-data:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install jq
-        run: sudo apt-get install jq -y
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-      - name: Update last_updated field in JSON
-        run: |
-          FILE="data/history.json"
+      - name: Install dependencies
+        run: npm ci || npm install
 
-          # Если файла нет — создаём
-          if [ ! -f "$FILE" ]; then
-            echo "Создаём новый $FILE"
-            echo '{"last_updated": "", "stats": {"crashes": []}}' > $FILE
-          fi
+      - name: Fetch new CS2Run data
+        run: node .github/scripts/update-data.js
 
-          # Получаем текущее время в Омске (UTC+7)
-          NOW=$(date -u +"%Y-%m-%dT%H:%M:%S+07:00")
-
-          # Обновляем last_updated
-          jq --arg now "$NOW" '.last_updated = $now' "$FILE" > tmp.$$.json && mv tmp.$$.json "$FILE"
-
-          echo "✅ Обновлено время: $NOW"
-
-      - name: Commit and push changes
+      - name: Commit & Push if data changed
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-          if git diff --quiet; then
-            echo "Нет изменений — пропускаем коммит"
-          else
-            git add data/history.json
-            git commit -m "Auto-update CS2Run data [$(date)]"
+          git add .
+          if ! git diff --cached --quiet; then
+            git commit -m "Update CS2Run data [$(date '+%Y-%m-%d %H:%M:%S')]"
             git push
+          else
+            echo "No changes to commit"
           fi
