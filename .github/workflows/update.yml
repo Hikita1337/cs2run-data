@@ -1,42 +1,52 @@
 name: Update CS2Run History
 
 on:
+  schedule:
+    - cron: "*/6 * * * *"  # каждые 6 минут
   workflow_dispatch:
   repository_dispatch:
     types: [external_update_trigger]
-  # schedule:   # 🔹 если хочешь резервный запуск — раскомментируй
-  #   - cron: "0 * * * *"  # раз в час на всякий случай
 
 jobs:
-  update-data:
+  update-history:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 18
 
-      - name: Install dependencies
-        run: npm install axios
-
-      - name: Fetch new CS2Run data
-        run: node .github/scripts/update-data.js
-
-      - name: Commit & Push if data changed
+      - name: Update history JSON
         run: |
-          git config user.name "GitHub Action"
-          git config user.email "actions@github.com"
+          FILE="data/history.json"
 
-          # Проверяем, есть ли изменения
+          # Проверяем, есть ли файл
+          if [ ! -f "$FILE" ]; then
+            echo "Создаём новый $FILE"
+            echo '{"last_updated": "", "stats": {"crashes": []}}' > $FILE
+          fi
+
+          # Получаем текущее время ISO с часовым поясом Омска
+          NOW=$(date -u +"%Y-%m-%dT%H:%M:%S+07:00")
+
+          # Обновляем last_updated в JSON
+          jq --arg now "$NOW" '.last_updated = $now' "$FILE" > tmp.$$.json && mv tmp.$$.json "$FILE"
+
+          echo "✅ last_updated обновлено на $NOW"
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           if git diff --quiet; then
-            echo "🟢 Нет изменений — пропускаем коммит."
+            echo "Нет изменений — коммит пропущен"
           else
-            echo "🔄 Обнаружены новые данные — сохраняем!"
-            git add data/cs2run_history.json
-            git commit -m "🔁 Update CS2Run history ($(date '+%Y-%m-%d %H:%M:%S'))"
+            git add .
+            git commit -m "Auto-update CS2Run data [$(date)]"
             git push
           fi
