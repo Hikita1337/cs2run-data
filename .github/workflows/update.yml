@@ -2,7 +2,7 @@ name: Update CS2Run History
 
 on:
   schedule:
-    - cron: "*/6 * * * *" # обновление каждые 6 минут
+    - cron: "*/1 * * * *" # обновление каждые 6 минут
   workflow_dispatch:
 
 permissions:
