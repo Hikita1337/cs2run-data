@@ -103,11 +103,13 @@ function writeLocalHistory(arr) {
     }
 
     const nowISO = new Date().toISOString();
-    const remoteWithTime = remoteItems.map(it => ({
-      id: it.id,
-      crash: Number(it.crash),
-      time: nowISO
-    }));
+  const remoteWithTime = remoteItems.map(it => ({
+  id: it.id,
+  crash: Number(it.crash),
+  time: nowISO,        // Время получения данных
+  updated_at: nowISO   // Время обновления данных
+}));
+  
 
     const local = readLocalHistory();
     console.log(`📁 Локально сохранено ${local.length} записей`);
