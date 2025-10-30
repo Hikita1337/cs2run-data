@@ -2,11 +2,12 @@
 // @name         CS2Run HUD
 // @namespace    cs2run.hud
 // @version      1.0
-// @description  HUD для статистики CS2Run
-// @match        https://cs2run.bet/*
+// @description  HUD статистики CS2Run (автоматический запуск)
+// @match        *://cs2run.bet/*
 // @grant        none
-// @inject-into  content
+// @run-at       document-end
 // ==/UserScript==
+
 (async () => {
   const ABLY_PUBLIC_KEY = "OPAt8A.dMkrwA:A9niPpJUrzV7J62AKvitMDaExAN6wJkJ_P1EnQ8Ya9Y";
 
