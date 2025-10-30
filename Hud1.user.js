@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         CS2Run HUD
+// @name         CS2Run
 // @namespace    cs2run.hud
 // @version      1.0
 // @description  HUD статистики CS2Run (автоматический запуск)
