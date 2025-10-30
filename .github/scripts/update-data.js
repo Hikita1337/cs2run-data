@@ -8,7 +8,7 @@ const path = require("path");
 
 const HISTORY_FILE = path.join(process.cwd(), "cs2run_history.json");
 const API_URL = "https://cs2run.app/crash/state";
-const MAX_HISTORY = 2000;
+const MAX_HISTORY = 200000;
 const FETCH_TIMEOUT_MS = 10000; // 10 секунд
 
 // === Быстрая обёртка над fetch с таймаутом ===
