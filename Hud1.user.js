@@ -5,8 +5,8 @@
 // @description  HUD для статистики CS2Run
 // @match        https://cs2run.bet/*
 // @grant        none
+// @inject-into  content
 // ==/UserScript==
-
 (async () => {
   const ABLY_PUBLIC_KEY = "OPAt8A.dMkrwA:A9niPpJUrzV7J62AKvitMDaExAN6wJkJ_P1EnQ8Ya9Y";
 
