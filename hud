@@ -1,0 +1,249 @@
+(async function() {
+  const GITHUB_URL = "https://raw.githubusercontent.com/Hikita1337/cs2run-data/main/cs2run_history.json";
+  const LS_PREFIX = "cs2run_v29_";
+
+  // --- helper storage ---
+  const ls = {
+    get(k, fallback = null) {
+      try { const v = localStorage.getItem(LS_PREFIX + k); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
+    },
+    set(k, v) { try { localStorage.setItem(LS_PREFIX + k, JSON.stringify(v)); } catch {} },
+  };
+
+  // --- create HUD container ---
+  const EXISTING_ID = "cs2run_hud_final";
+  document.getElementById(EXISTING_ID)?.remove();
+
+  const hud = document.createElement("div");
+  hud.id = EXISTING_ID;
+
+  const savedLeft = ls.get("left", null);
+  const savedTop = ls.get("top", null);
+  const savedW = ls.get("width", 280);
+  const savedH = ls.get("height", null);
+  const savedDetails = ls.get("details", false);
+
+  hud.style.cssText = [
+    "position:fixed",
+    `left:${savedLeft !== null ? savedLeft + "px" : "auto"}`,
+    `top:${savedTop !== null ? savedTop + "px" : "20px"}`,
+    (savedLeft === null ? "right:20px" : ""),
+    `width:${(savedW||280)}px`,
+    savedH ? `height:${savedH}px` : "",
+    "max-height:85vh",
+    "overflow:auto",
+    "background:rgba(255,255,255,0.25)",
+    "backdrop-filter:blur(10px)",
+    "border:1px solid rgba(0,0,0,0.12)",
+    "border-radius:10px",
+    "box-shadow:0 6px 22px rgba(0,0,0,0.18)",
+    "font-family:-apple-system, system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial",
+    "color:#000",
+    "padding:8px",
+    "z-index:2147483647",
+    "user-select:none",
+    "touch-action:none",
+  ].join(";");
+
+  document.body.appendChild(hud);
+
+  hud.innerHTML = `
+    <div id="cs2run_header" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="font-weight:700">🎯 CS2Run</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="cs2run_btn_details" title="Подробности" style="border:none;background:rgba(255,255,255,0.35);border-radius:6px;padding:4px 6px;cursor:pointer">📈</button>
+        <button id="cs2run_btn_settings" title="Настройки" style="border:none;background:rgba(255,255,255,0.35);border-radius:6px;padding:4px 6px;cursor:pointer">⚙️</button>
+        <button id="cs2run_btn_close" title="Закрыть" style="border:none;background:rgba(255,255,255,0.35);border-radius:6px;padding:4px 6px;cursor:pointer">✖</button>
+      </div>
+    </div>
+    <div id="cs2run_body" style="margin-top:8px;font-size:14px">⏳ Загрузка...</div>
+    <div id="cs2run_resize" style="
+      position:absolute;right:6px;bottom:6px;width:20px;height:20px;
+      display:flex;align-items:center;justify-content:center;
+      cursor:nwse-resize;background:rgba(0,0,0,0.05);
+      border-radius:4px;font-size:13px;user-select:none;touch-action:none;
+    ">▣</div>
+  `;
+
+  const header = hud.querySelector("#cs2run_header");
+  const body = hud.querySelector("#cs2run_body");
+  const btnDetails = hud.querySelector("#cs2run_btn_details");
+  const btnSettings = hud.querySelector("#cs2run_btn_settings");
+  const btnClose = hud.querySelector("#cs2run_btn_close");
+  const resizeHandle = hud.querySelector("#cs2run_resize");
+
+  // --- fetch + cache ---
+  async function fetchData() {
+    const CACHE_KEY = LS_PREFIX + "cache";
+    let cached = null;
+    try { cached = JSON.parse(localStorage.getItem(CACHE_KEY)); } catch {}
+    try {
+      const r = await fetch(`${GITHUB_URL}?_t=${Date.now()}`);
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json();
+      const payload = { data, updated: Date.now(), source: "GitHub" };
+      localStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+      return payload;
+    } catch (err) {
+      if (cached) return cached;
+      throw err;
+    }
+  }
+
+  // --- render HUD ---
+  async function render() {
+    body.innerHTML = "⏳ Загрузка…";
+    try {
+      const packet = await fetchData();
+      const data = packet.data;
+      const source = packet.source || "GitHub";
+      const lastItem = data[data.length - 1];
+      const lastUpdate = lastItem?.time || packet.updated || Date.now();
+
+      const avgFn = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+      const avgs = data.map(x => Number(x.avg ?? x.crash)).filter(n => !isNaN(n));
+      const avg10 = avgFn(avgs.slice(-10)).toFixed(2);
+      const avg25 = avgFn(avgs.slice(-25)).toFixed(2);
+      const avg50 = avgFn(avgs.slice(-50)).toFixed(2);
+      const totalAvg = avgFn(avgs).toFixed(2);
+
+      let html = `
+        <div>📊 10 игр — <b style="color:#34C759">${avg10}x</b></div>
+        <div>📊 25 игр — <b style="color:#FF3B30">${avg25}x</b></div>
+        <div>📊 50 игр — <b style="color:#FFD60A">${avg50}x</b></div>
+        <hr style="border:none;border-top:1px solid rgba(0,0,0,0.08);margin:8px 0;">
+        <div>Общий средний: <b>${totalAvg}</b> • Всего игр: ${avgs.length}</div>
+        <div id="cs2run_updated" style="font-size:13px;color:#2f7ac8;margin-top:6px;font-weight:500;">
+          ⏰ Обновлено: ${new Date(lastUpdate).toLocaleTimeString("ru-RU")} (${source})
+        </div>
+      `;
+
+      if (ls.get("details", false)) {
+        const dayAgo = Date.now() - 86400000;
+        const lastDay = data.filter(x => new Date(x.time).getTime() >= dayAgo);
+        const maxCrash = lastDay.length ? Math.max(...lastDay.map(x => x.crash ?? 0)) : null;
+        html += `<div style="margin-top:8px;color:#FF9500;font-weight:600;">🔥 Максимум за сутки: ${maxCrash ? maxCrash.toFixed(2) + "x" : "—"}</div>`;
+
+        const dayGroups = {
+          "🌙 Ночь": { from: 0, to: 6, color: "#696969" },
+          "🌅 Утро": { from: 6, to: 12, color: "#0000FF" },
+          "🌞 День": { from: 12, to: 18, color: "#008080" },
+          "🌇 Вечер": { from: 18, to: 24, color: "#778899" },
+        };
+        html += `<div style="margin-top:8px;font-size:13px"><b>🕓 Средние по времени суток</b><br>`;
+        for (const [label, cfg] of Object.entries(dayGroups)) {
+          const subset = data.filter(x => {
+            const h = new Date(x.time).getHours();
+            return h >= cfg.from && h < cfg.to;
+          });
+          const avgVal = subset.length ? avgFn(subset.map(x => Number(x.crash ?? x.avg))) : 0;
+          const bar = "▇".repeat(Math.min(Math.round(avgVal), 12));
+          html += `${label.padEnd(8)} <span style="color:${cfg.color}">${bar}</span> ${avgVal.toFixed(2)}x<br>`;
+        }
+        html += `</div>`;
+      }
+
+      body.innerHTML = html;
+    } catch {
+      body.innerHTML = `<div style="color:#c0392b">❌ Ошибка загрузки данных</div>`;
+    }
+  }
+
+  // --- кнопки управления ---
+  btnDetails.addEventListener("click", () => {
+    const now = !ls.get("details", false);
+    ls.set("details", now);
+    render();
+    btnDetails.style.background = now ? "rgba(52,199,89,0.12)" : "rgba(255,255,255,0.35)";
+  });
+
+  btnSettings.addEventListener("click", () => {
+    alert("Настройки:\n• Автообновление: 30 сек\n• Прозрачность: 0.25\n• Перемещение: удерживать 🖐️\n• Изменение размера: ▣ внизу справа\n• Всё сохраняется автоматически");
+  });
+
+  btnClose.addEventListener("click", () => hud.remove());
+  btnDetails.style.background = savedDetails ? "rgba(52,199,89,0.12)" : "rgba(255,255,255,0.35)";
+
+  // --- кнопка перемещения ---
+  const moveBtn = document.createElement("div");
+  moveBtn.textContent = "🖐️";
+  moveBtn.title = "Удерживайте, чтобы перетащить";
+  moveBtn.style.cssText = "display:inline-block;margin-left:8px;cursor:grab;padding:4px;border-radius:6px;background:rgba(255,255,255,0.05);touch-action:none;";
+  header.querySelector("div").insertBefore(moveBtn, header.querySelector("div").children[1] || null);
+
+  let dragging = false, pointerId_drag = null, dragStartX = 0, dragStartY = 0, startLeft = 0, startTop = 0;
+
+  moveBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    moveBtn.setPointerCapture?.(e.pointerId);
+    pointerId_drag = e.pointerId;
+    dragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = hud.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+    moveBtn.style.cursor = "grabbing";
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (!dragging || e.pointerId !== pointerId_drag) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    hud.style.left = (startLeft + dx) + "px";
+    hud.style.top = (startTop + dy) + "px";
+    hud.style.right = "auto";
+  });
+
+  window.addEventListener("pointerup", (e) => {
+    if (!dragging || e.pointerId !== pointerId_drag) return;
+    dragging = false;
+    pointerId_drag = null;
+    moveBtn.releasePointerCapture?.(e.pointerId);
+    moveBtn.style.cursor = "grab";
+    const rect = hud.getBoundingClientRect();
+    ls.set("left", Math.round(rect.left));
+    ls.set("top", Math.round(rect.top));
+  });
+
+  // --- resize handle ---
+  let resizing = false, pointerId_resize = null, resizeStartX = 0, resizeStartY = 0, resizeStartW = 0, resizeStartH = 0;
+  resizeHandle.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    resizeHandle.setPointerCapture?.(e.pointerId);
+    pointerId_resize = e.pointerId;
+    resizing = true;
+    const rect = hud.getBoundingClientRect();
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    resizeStartW = rect.width;
+    resizeStartH = rect.height;
+    document.body.style.cursor = "nwse-resize";
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (!resizing || e.pointerId !== pointerId_resize) return;
+    const dx = e.clientX - resizeStartX;
+    const dy = e.clientY - resizeStartY;
+    const newW = Math.max(60, resizeStartW + dx);
+    const newH = Math.max(40, resizeStartH + dy);
+    hud.style.width = newW + "px";
+    hud.style.height = newH + "px";
+  });
+
+  window.addEventListener("pointerup", (e) => {
+    if (!resizing || e.pointerId !== pointerId_resize) return;
+    resizing = false;
+    pointerId_resize = null;
+    resizeHandle.releasePointerCapture?.(e.pointerId);
+    document.body.style.cursor = "";
+    ls.set("width", parseInt(hud.style.width));
+    ls.set("height", parseInt(hud.style.height));
+  });
+
+  // --- auto refresh ---
+  await render();
+  setInterval(render, 30000);
+})();
