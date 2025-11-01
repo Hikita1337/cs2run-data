@@ -273,6 +273,46 @@ titleEl.appendChild(crashVal);
   bottomRow.appendChild(updatedEl);
   hud.appendChild(bottomRow);
   
+  // --- Автоматическое выравнивание нижней строки ---
+bottomRow.style.transition = "all 0.3s ease";
+
+// функция обновления положения
+function updateBottomLayout() {
+  // если оба выключены — сдвигаем всё влево
+  if (!state.showPing && !state.showCpu) {
+    bottomRow.style.justifyContent = "flex-start";
+    updatedEl.style.marginLeft = "0";
+  } 
+  // если один выключен — слегка выравниваем
+  else if (!state.showPing || !state.showCpu) {
+    bottomRow.style.justifyContent = "space-between";
+    updatedEl.style.marginLeft = "4px";
+  } 
+  // если оба включены — равномерно
+  else {
+    bottomRow.style.justifyContent = "space-between";
+    updatedEl.style.marginLeft = "0";
+  }
+}
+
+// вызывать при каждом изменении настроек
+function refreshPerfVisibility() {
+  perfEl.innerHTML = "";
+  if (state.showPing) {
+    const p = document.createElement("div");
+    p.textContent = `⚡ Пинг: ${typeof lastPayload.ping === "number" ? lastPayload.ping.toFixed(3) + " s" : lastPayload.ping ?? "—"}`;
+    perfEl.appendChild(p);
+  }
+  if (state.showCpu) {
+    const c = document.createElement("div");
+    c.textContent = `🧩 CPU: ${lastPayload.cpuLoad ?? "—"}%`;
+    perfEl.appendChild(c);
+  }
+  updateBottomLayout();
+}
+
+// заменяем старое место, где создавался perfEl, на вызов этой функции
+  
 // --- Стеклянный эффект для верхней и нижней панелей ---
 
 // Верхняя панель (topRow)
@@ -520,19 +560,14 @@ rowTheme.appendChild(labelTheme);
 rowTheme.appendChild(selTheme);
 settingsModal.appendChild(rowTheme);
 
-// --- ОТОБРАЖЕНИЕ ПИНГА И CPU ---
-const rowPerf = document.createElement("div");
-rowPerf.className = "cs-row";
-rowPerf.style.display = "flex";
-rowPerf.style.flexDirection = "column";
-rowPerf.style.gap = "8px";
-rowPerf.style.marginTop = "6px";
-
-const toggleContainer = (labelText, stateKey) => {
+// --- ПЕРЕКЛЮЧАТЕЛИ ПИНГ / CPU ---
+function createToggleRow(labelText, stateKey) {
   const row = document.createElement("div");
+  row.className = "cs-row";
   row.style.display = "flex";
-  row.style.alignItems = "center";
   row.style.justifyContent = "space-between";
+  row.style.alignItems = "center";
+  row.style.margin = "6px 0";
 
   const label = document.createElement("label");
   label.textContent = labelText;
@@ -543,20 +578,55 @@ const toggleContainer = (labelText, stateKey) => {
   const toggle = document.createElement("input");
   toggle.type = "checkbox";
   toggle.checked = tempState[stateKey];
-  toggle.style.width = "18px";
-  toggle.style.height = "18px";
-  toggle.style.cursor = "pointer";
-
+  toggle.className = "ios-toggle";
   toggle.onchange = () => tempState[stateKey] = toggle.checked;
 
   row.appendChild(label);
   row.appendChild(toggle);
   return row;
-};
+}
 
-rowPerf.appendChild(toggleContainer("Показать пинг", "showPing"));
-rowPerf.appendChild(toggleContainer("Показать CPU", "showCpu"));
-settingsModal.appendChild(rowPerf);
+const rowPing = createToggleRow("Показать пинг", "showPing");
+const rowCpu = createToggleRow("Показать CPU", "showCpu");
+
+settingsModal.appendChild(rowPing);
+settingsModal.appendChild(rowCpu);
+
+// --- iOS стиль для тумблеров ---
+const toggleStyle = document.createElement("style");
+toggleStyle.textContent = `
+  .ios-toggle {
+    position: relative;
+    width: 46px;
+    height: 26px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: #ccc;
+    border-radius: 26px;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.25s ease;
+  }
+  .ios-toggle:checked {
+    background: #34C759;
+  }
+  .ios-toggle::before {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  .ios-toggle:checked::before {
+    transform: translateX(20px);
+  }
+`;
+document.head.appendChild(toggleStyle);
 
 // --- КНОПКИ ДЕЙСТВИЙ ---
 // actions (нижние кнопки)
