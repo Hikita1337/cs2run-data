@@ -70,10 +70,18 @@
 
   function applyThemeToElement(el, theme) {
     if (theme === "dark") {
-      el.style.background = `rgba(20,20,20,${state.bgOpacity})`;
-      el.style.color = `rgba(230,230,230,${state.textOpacity})`;
-      el.style.boxShadow = "0 2px 12px rgba(0,0,0,0.6)";
-    } else if (theme === "light") {
+  el.style.background = `rgba(20,20,20,${state.bgOpacity})`;
+  el.style.color = `rgba(230,230,230,${state.textOpacity})`;
+  el.style.boxShadow = "0 2px 12px rgba(0,0,0,0.6)";
+  
+  // 👉 Добавляем подсветку нижней строки в белый цвет
+  if (el === hud) {
+    const bottom = el.querySelector("#cs_perf");
+    const updated = el.querySelector("#cs_updated");
+    if (bottom) bottom.style.color = "rgba(255,255,255,0.85)";
+    if (updated) updated.style.color = "rgba(255,255,255,0.85)";
+  }
+} else if (theme === "light") {
       el.style.background = `rgba(255,255,255,${state.bgOpacity})`;
       el.style.color = `rgba(20,20,20,${state.textOpacity})`;
       el.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
