@@ -187,14 +187,16 @@
   rightControls.style.gap = "8px";
 
   // current crash element (to be updated)
-  const crashVal = document.createElement("div");
-  crashVal.id = "cs_crash_val";
-  crashVal.style.fontWeight = "700";
-  crashVal.style.fontSize = "16px";
-  crashVal.style.minWidth = "56px";
-  crashVal.style.textAlign = "right";
-  crashVal.style.transition = "all .3s ease";
-  rightControls.appendChild(crashVal);
+  // --- Заголовок с коэффициентом справа от "CS2Run (live)" ---
+const crashVal = document.createElement("span");
+crashVal.id = "cs_crash_val";
+crashVal.style.marginLeft = "8px"; // примерно 0.4 см
+crashVal.style.fontWeight = "700";
+crashVal.style.fontSize = "16px";
+crashVal.style.transition = "all .3s ease";
+
+// добавляем его прямо в ту же строку, что и "(live)"
+titleEl.appendChild(crashVal);
 
   // gear/settings button
   const gear = document.createElement("div");
