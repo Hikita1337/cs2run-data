@@ -608,13 +608,14 @@ document.getElementById("cs_max24h").textContent = formatVal(lastPayload.max24h)
   const resizeHandle = document.createElement("div");
   resizeHandle.textContent = "↘️";
   resizeHandle.style.position = "absolute";
-  resizeHandle.style.right = "8px";
-  resizeHandle.style.bottom = "8px";
+  resizeHandle.style.right = "4.5px";
+  resizeHandle.style.bottom = "4.5px";
   resizeHandle.style.cursor = "nwse-resize";
-  resizeHandle.style.fontSize = "14px";
-  resizeHandle.style.background = "rgba(255,255,255,0.6)";
-  resizeHandle.style.borderRadius = "6px";
-  resizeHandle.style.padding = "2px 6px";
+  resizeHandle.style.fontSize = "10.5px";
+resizeHandle.style.background = "rgba(255,255,255,0.1)";
+ resizeHandle.style.borderRadius = "4px";
+resizeHandle.style.padding = "1px 4px";
+resizeHandle.style.opacity = "0.8";
   resizeHandle.style.userSelect = "none";
   hud.appendChild(resizeHandle);
 
