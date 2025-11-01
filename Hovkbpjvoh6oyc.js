@@ -184,6 +184,8 @@
   topRow.style.display = "flex";
   topRow.style.justifyContent = "space-between";
   topRow.style.alignItems = "center";
+topRow.style.marginTop = "-6px";    // поднимает чуть выше
+topRow.style.marginLeft = "-4px";   // смещает левее
 
   const titleEl = document.createElement("div");
   titleEl.innerHTML = `<span style="font-weight:700;font-size:15px;">🎯 CS2Run</span> <span style="color:#007AFF;font-weight:600;font-size:13px;">(live)</span>`;
