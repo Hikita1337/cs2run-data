@@ -451,76 +451,98 @@ if (state.theme === "dark") {
     
     
     
-    // theme
-    const rowTheme = document.createElement("div"); rowTheme.className = "cs-row";
-    const labelTheme = document.createElement("label"); labelTheme.textContent = "Тема";
-    const selTheme = document.createElement("select");
-    ["auto","light","dark"].forEach(t => { const opt = document.createElement("option"); opt.value = t; opt.textContent = t; if (tempState.theme===t) opt.selected=true; selTheme.appendChild(opt); });
-    selTheme.onchange = () => tempState.theme = selTheme.value;
-    rowTheme.appendChild(labelTheme); rowTheme.appendChild(selTheme);
-    settingsModal.appendChild(rowTheme);
+// --- ТЕМА ---
+const rowTheme = document.createElement("div");
+rowTheme.className = "cs-row";
+rowTheme.style.display = "flex";
+rowTheme.style.justifyContent = "space-between";
+rowTheme.style.alignItems = "center";
+rowTheme.style.marginTop = "8px";
+rowTheme.style.marginBottom = "4px";
 
-    // toggles
-    const rowToggles = document.createElement("div"); rowToggles.className = "cs-row";
-    rowToggles.style.flexDirection = "column";
-    const makeToggle = (labelTxt, key) => {
-      const r = document.createElement("div"); r.style.display="flex"; r.style.justifyContent="space-between"; r.style.alignItems="center";
-      const lab = document.createElement("label"); lab.textContent = labelTxt;
-      const cb = document.createElement("input"); cb.type="checkbox"; cb.checked = !!tempState[key];
-      cb.onchange = () => tempState[key] = cb.checked;
-      r.appendChild(lab); r.appendChild(cb); return r;
-    };
-    rowToggles.appendChild(makeToggle("Показывать пинг", "showPing"));
-    rowToggles.appendChild(makeToggle("Показывать CPU", "showCpu"));
-    rowToggles.appendChild(makeToggle("Показывать текущий коэффициент", "showCurrentCrash"));
-    settingsModal.appendChild(rowToggles);
+const labelTheme = document.createElement("label");
+labelTheme.textContent = "Тема";
+labelTheme.style.fontSize = "14px";
+labelTheme.style.fontWeight = "500";
+labelTheme.style.flex = "1";
+labelTheme.style.color = "inherit";
 
-    // actions
-    const actions = document.createElement("div"); actions.style.display="flex"; actions.style.justifyContent="space-between"; actions.style.marginTop="auto";
-    const resetBtn = document.createElement("button"); resetBtn.textContent = "Сброс настроек"; resetBtn.style.background="#FF3B30"; resetBtn.style.color="#fff";
-    const applyBtn = document.createElement("button"); applyBtn.textContent = "Применить"; applyBtn.style.background="#34C759"; applyBtn.style.color="#fff";
-    const closeBtn = document.createElement("button"); closeBtn.textContent = "Закрыть"; closeBtn.style.background="#ccc";
-    resetBtn.onclick = () => {
-      if (!confirm("Сбросить настройки к значениям по умолчанию? HUD перезагрузится.")) return;
-      localStorage.removeItem(LS_KEY);
-      location.reload();
-    };
-    applyBtn.onclick = () => {
-      // apply tempState to state and persist
-      state = { ...state, ...tempState };
-      saveState(state);
-      // apply theme/opacity live
-      applyThemeToElement(hud, state.theme);
-      hud.style.background = hud.style.background; // reapply via function
-      hud.style.color = ""; // color set by applyThemeToElement already
-      // update text opacity
-      hud.style.color = hud.style.color; // just ensure update
-      // update elements that depend on these
-      // update bottomRow opacity
-      bottomRow.style.opacity = state.textOpacity;
-      // hide/show elements
-      crashVal.style.display = state.showCurrentCrash ? "" : "none";
-      // save
-      saveState(state);
-      closeSettings();
-    };
-    closeBtn.onclick = () => {
-      // if changes staged and not equal to saved -> ask
-      const staged = JSON.stringify(tempState);
-      const savedStr = JSON.stringify(state);
-      if (staged !== savedStr) {
-        // prompt apply/discard/cancel
-        const ans = confirm("Применить изменения? Нажмите OK — применить; Отмена — закрыть без сохранения.");
-        if (ans) { applyBtn.click(); return; }
-        else { closeSettings(false); return; }
-      }
-      closeSettings();
-    };
+const selTheme = document.createElement("select");
+["auto", "light", "dark"].forEach(t => {
+  const opt = document.createElement("option");
+  opt.value = t;
+  opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+  if (tempState.theme === t) opt.selected = true;
+  selTheme.appendChild(opt);
+});
+selTheme.onchange = () => tempState.theme = selTheme.value;
 
-    actions.appendChild(resetBtn);
-    actions.appendChild(closeBtn);
-    actions.appendChild(applyBtn);
-    settingsModal.appendChild(actions);
+// стиль кнопки выбора темы
+selTheme.style.flex = "1";
+selTheme.style.maxWidth = "130px";   // ширина, чтобы текст полностью помещался
+selTheme.style.padding = "6px 10px";
+selTheme.style.border = "1px solid rgba(0,0,0,0.2)";
+selTheme.style.borderRadius = "8px";
+selTheme.style.fontSize = "13px";
+selTheme.style.background = "rgba(255,255,255,0.8)";
+selTheme.style.color = "#000";
+selTheme.style.cursor = "pointer";
+selTheme.style.textAlign = "center";
+
+rowTheme.appendChild(labelTheme);
+rowTheme.appendChild(selTheme);
+settingsModal.appendChild(rowTheme);
+
+// --- КНОПКИ ДЕЙСТВИЙ ---
+const actions = document.createElement("div");
+actions.style.display = "flex";
+actions.style.justifyContent = "space-between";
+actions.style.gap = "8px";
+actions.style.marginTop = "auto";
+actions.style.paddingTop = "8px";
+
+const makeButton = (text, bg, color) => {
+  const b = document.createElement("button");
+  b.textContent = text;
+  b.style.flex = "1";
+  b.style.padding = "10px 0";
+  b.style.border = "none";
+  b.style.borderRadius = "8px";
+  b.style.fontWeight = "600";
+  b.style.fontSize = "13px";
+  b.style.cursor = "pointer";
+  b.style.background = bg;
+  b.style.color = color;
+  b.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
+  b.style.transition = "opacity 0.2s ease";
+  b.onmouseover = () => b.style.opacity = "0.8";
+  b.onmouseout = () => b.style.opacity = "1";
+  return b;
+};
+
+const resetBtn = makeButton("Сброс настроек", "#FF3B30", "#fff");
+const closeBtn = makeButton("Закрыть", "#A0A0A0", "#fff");
+const applyBtn = makeButton("Применить", "#34C759", "#fff");
+
+// --- действия кнопок ---
+resetBtn.onclick = () => {
+  if (!confirm("Сбросить настройки к значениям по умолчанию? HUD перезагрузится.")) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+};
+applyBtn.onclick = () => {
+  state = { ...state, ...tempState };
+  saveState(state);
+  applyThemeToElement(hud, state.theme);
+  crashVal.style.display = state.showCurrentCrash ? "" : "none";
+  closeSettings();
+};
+closeBtn.onclick = () => closeSettings();
+
+actions.appendChild(resetBtn);
+actions.appendChild(closeBtn);
+actions.appendChild(applyBtn);
+settingsModal.appendChild(actions);
 
     // allow dragging the modal
     let modalDrag = null;
