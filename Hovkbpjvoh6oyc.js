@@ -494,37 +494,46 @@ rowTheme.appendChild(selTheme);
 settingsModal.appendChild(rowTheme);
 
 // --- КНОПКИ ДЕЙСТВИЙ ---
+// actions (нижние кнопки)
 const actions = document.createElement("div");
 actions.style.display = "flex";
 actions.style.justifyContent = "space-between";
-actions.style.gap = "8px";
 actions.style.marginTop = "auto";
-actions.style.paddingTop = "8px";
+actions.style.gap = "10px";
 
-const makeButton = (text, bg, color) => {
-  const b = document.createElement("button");
-  b.textContent = text;
-  b.style.flex = "1";
-  b.style.padding = "10px 0";
-  b.style.border = "none";
-  b.style.borderRadius = "8px";
-  b.style.fontWeight = "600";
-  b.style.fontSize = "13px";
-  b.style.cursor = "pointer";
-  b.style.background = bg;
-  b.style.color = color;
-  b.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
-  b.style.transition = "opacity 0.2s ease";
-  b.onmouseover = () => b.style.opacity = "0.8";
-  b.onmouseout = () => b.style.opacity = "1";
-  return b;
-};
+// стили для кнопок
+const baseBtnStyle = `
+  flex: 1;
+  height: 28px; /* 🔹 тоньше — аккуратный системный размер */
+  line-height: 28px;
+  border: 1px solid rgba(0,0,0,0.15);
+  border-radius: 7px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+`;
 
-const resetBtn = makeButton("Сброс настроек", "#FF3B30", "#fff");
-const closeBtn = makeButton("Закрыть", "#A0A0A0", "#fff");
-const applyBtn = makeButton("Применить", "#34C759", "#fff");
+const resetBtn = document.createElement("button");
+resetBtn.textContent = "Сброс настроек";
+resetBtn.style.cssText = baseBtnStyle + "background:#FF3B30;color:#fff;";
+resetBtn.onmouseover = () => resetBtn.style.filter = "brightness(1.15)";
+resetBtn.onmouseout = () => resetBtn.style.filter = "";
 
-// --- действия кнопок ---
+const closeBtn = document.createElement("button");
+closeBtn.textContent = "Закрыть";
+closeBtn.style.cssText = baseBtnStyle + "background:#999;color:#fff;";
+closeBtn.onmouseover = () => closeBtn.style.filter = "brightness(1.15)";
+closeBtn.onmouseout = () => closeBtn.style.filter = "";
+
+const applyBtn = document.createElement("button");
+applyBtn.textContent = "Применить";
+applyBtn.style.cssText = baseBtnStyle + "background:#34C759;color:#fff;";
+applyBtn.onmouseover = () => applyBtn.style.filter = "brightness(1.15)";
+applyBtn.onmouseout = () => applyBtn.style.filter = "";
+
+// события
 resetBtn.onclick = () => {
   if (!confirm("Сбросить настройки к значениям по умолчанию? HUD перезагрузится.")) return;
   localStorage.removeItem(LS_KEY);
@@ -535,10 +544,13 @@ applyBtn.onclick = () => {
   saveState(state);
   applyThemeToElement(hud, state.theme);
   crashVal.style.display = state.showCurrentCrash ? "" : "none";
+  bottomRow.style.opacity = state.textOpacity;
+  saveState(state);
   closeSettings();
 };
 closeBtn.onclick = () => closeSettings();
 
+// добавляем кнопки в блок
 actions.appendChild(resetBtn);
 actions.appendChild(closeBtn);
 actions.appendChild(applyBtn);
