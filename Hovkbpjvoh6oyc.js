@@ -125,6 +125,46 @@
   // append
   document.body.appendChild(hud);
 
+  // --- Экран ожидания при первом запуске ---
+const loadingOverlay = document.createElement("div");
+loadingOverlay.id = "hud_loading_overlay";
+loadingOverlay.style.position = "fixed";
+loadingOverlay.style.inset = "0";
+loadingOverlay.style.background = "rgba(0,0,0,0.75)";
+loadingOverlay.style.display = "flex";
+loadingOverlay.style.flexDirection = "column";
+loadingOverlay.style.alignItems = "center";
+loadingOverlay.style.justifyContent = "center";
+loadingOverlay.style.gap = "20px";
+loadingOverlay.style.zIndex = "1000002";
+loadingOverlay.style.transition = "opacity 0.6s ease";
+
+loadingOverlay.innerHTML = `
+  <img src="https://cs2run.bet/img/crash/begun-v-1.gif" style="width:120px;height:auto;">
+  <div style="font-size:16px;color:white;font-weight:600;">Ждём завершения игры…</div>
+  <div style="width:240px;height:10px;background:rgba(255,255,255,0.2);border-radius:8px;overflow:hidden;">
+    <div id="hud_loading_fill" style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);transition:width 0.3s linear;"></div>
+  </div>
+`;
+
+document.body.appendChild(loadingOverlay);
+
+// Анимация заполнения прогресс-бара
+let loadProgress = 0;
+const fill = loadingOverlay.querySelector("#hud_loading_fill");
+const progressTimer = setInterval(() => {
+  loadProgress += Math.random() * 4; // случайное ускорение
+  if (loadProgress > 95) loadProgress = 95;
+  fill.style.width = loadProgress + "%";
+}, 400);
+
+// Функция скрытия оверлея после получения данных
+function hideLoadingOverlay() {
+  clearInterval(progressTimer);
+  loadingOverlay.style.opacity = "0";
+  setTimeout(() => loadingOverlay.remove(), 600);
+}
+
   // ------------------------------
   // Style & animations
   // ------------------------------
@@ -903,7 +943,9 @@ function showRestoreButton() {
     hideProgressOverlayThenShowReceived();
     // render
     renderPayload(data);
-  });
+    if (document.getElementById("hud_loading_overlay")) hideLoadingOverlay();
+});
+  
 
   // external API for parser to show progress: parser can publish 'waiting' on channel or you can call showProgressOverlay()
   // We'll also expose a simple global toggler so parser or other code can call window.__cs2run_showWait()
