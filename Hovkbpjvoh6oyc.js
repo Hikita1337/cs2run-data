@@ -230,14 +230,14 @@ titleEl.appendChild(crashVal);
 
   // stats rows
   const line = (label, id) => {
-    const el = document.createElement("div");
-    el.style.display = "flex";
-    el.style.justifyContent = "space-between";
-    el.style.alignItems = "center";
-    el.style.fontSize = "13px";
-    el.innerHTML = `<div style="opacity:.9">${label}</div><div id="${id}" style="font-weight:700"></div>`;
-    return el;
-  };
+  const el = document.createElement("div");
+  el.style.display = "flex";
+  el.style.alignItems = "center";
+  el.style.fontSize = "13px";
+  el.style.gap = "6px"; // расстояние между текстом и числом
+  el.innerHTML = `<div style="opacity:.9">${label}</div><div id="${id}" style="font-weight:700"></div>`;
+  return el;
+};
 
   const avg10El = line("📊 10 игр —", "cs_avg10");
   const avg25El = line("📊 25 игр —", "cs_avg25");
