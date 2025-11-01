@@ -278,18 +278,16 @@ bottomRow.style.transition = "all 0.3s ease";
 
 // функция обновления положения
 function updateBottomLayout() {
-  // если оба выключены — сдвигаем всё влево
-  if (!state.showPing && !state.showCpu) {
+  const hasPerf = state.showPing || state.showCpu;
+
+  if (!hasPerf) {
+    // оба выключены — тянем обновление влево полностью
     bottomRow.style.justifyContent = "flex-start";
-    updatedEl.style.marginLeft = "0";
-  } 
-  // если один выключен — слегка выравниваем
-  else if (!state.showPing || !state.showCpu) {
-    bottomRow.style.justifyContent = "space-between";
-    updatedEl.style.marginLeft = "4px";
-  } 
-  // если оба включены — равномерно
-  else {
+    perfEl.style.display = "none";
+    updatedEl.style.marginLeft = "8px";
+  } else {
+    // если хотя бы один включен — показываем блок и выравниваем равномерно
+    perfEl.style.display = "flex";
     bottomRow.style.justifyContent = "space-between";
     updatedEl.style.marginLeft = "0";
   }
