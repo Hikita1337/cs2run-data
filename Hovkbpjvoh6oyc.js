@@ -272,6 +272,33 @@ titleEl.appendChild(crashVal);
   bottomRow.appendChild(perfEl);
   bottomRow.appendChild(updatedEl);
   hud.appendChild(bottomRow);
+  
+// --- Стеклянный эффект для верхней и нижней панелей ---
+
+// Верхняя панель (topRow)
+topRow.style.background = "rgba(255,255,255,0.08)"; // светлая дымка
+topRow.style.backdropFilter = "blur(10px)";
+topRow.style.webkitBackdropFilter = "blur(10px)";
+topRow.style.borderBottom = "1px solid rgba(255,255,255,0.15)";
+topRow.style.padding = "6px 10px"; // внутренние отступы внутри панели
+topRow.style.borderRadius = "10px 10px 0 0";
+topRow.style.margin = "0"; // убираем внешние отступы
+topRow.style.width = "100%"; // растягиваем на всю ширину HUD
+topRow.style.boxSizing = "border-box";
+
+// Нижняя панель (bottomRow)
+bottomRow.style.background = "rgba(255,255,255,0.06)"; // чуть темнее
+bottomRow.style.backdropFilter = "blur(10px)";
+bottomRow.style.webkitBackdropFilter = "blur(10px)";
+bottomRow.style.borderTop = "1px solid rgba(255,255,255,0.12)";
+bottomRow.style.padding = "6px 10px";
+bottomRow.style.borderRadius = "0 0 10px 10px";
+bottomRow.style.margin = "0";
+bottomRow.style.width = "100%";
+bottomRow.style.boxSizing = "border-box";
+
+// убираем общий внутренний отступ HUD, чтобы панели легли заподлицо
+hud.style.padding = "0";
 
   // progress overlay (hidden by default)
   const progressOverlay = document.createElement("div");
