@@ -347,13 +347,7 @@ hud.style.padding = "0";
                                <div id="cs_progress_text" style="font-size:12px;color:rgba(255,255,255,0.95)"></div>`;
   hud.appendChild(progressOverlay);
 
-  // collapse button (for when HUD hidden)
-  const collapseBtn = document.createElement("div");
-  collapseBtn.className = "cs-collapse-btn";
-  collapseBtn.style.display = state.collapsed ? "flex" : "none";
-  collapseBtn.textContent = "CS";
-  collapseBtn.title = "Показать HUD";
-  document.body.appendChild(collapseBtn);
+  
 
   // ------------------------------
   // Functions to render incoming data
@@ -833,22 +827,72 @@ resizeHandle.style.opacity = "0.8";
   document.addEventListener("mouseup", stopResize);
   document.addEventListener("touchend", stopResize);
 
-  // collapse button behavior
-  collapseBtn.addEventListener("click", () => {
-    // show HUD
-    collapseBtn.style.display = "none";
-    hud.style.display = "flex";
-    state.collapsed = false;
-    saveState(state);
-  });
+// --- Кнопка сворачивания HUD ---
+const collapseIcon = document.createElement("div");
+collapseIcon.textContent = "—"; // жирный минус
+collapseIcon.style.fontSize = "18px";
+collapseIcon.style.fontWeight = "900";
+collapseIcon.style.cursor = "pointer";
+collapseIcon.style.marginRight = "10px"; // чуть левее от gear
+collapseIcon.style.userSelect = "none";
+collapseIcon.style.opacity = "0.9";
+collapseIcon.style.transition = "opacity 0.2s ease";
+collapseIcon.title = "Свернуть HUD";
 
-  // hide HUD (gear menu inside settings provides more powerful options, but also ability to collapse by doubleclick title)
-  titleEl.addEventListener("dblclick", () => {
+collapseIcon.onmouseenter = () => collapseIcon.style.opacity = "1";
+collapseIcon.onmouseleave = () => collapseIcon.style.opacity = "0.9";
+collapseIcon.onclick = () => {
+  hud.style.opacity = "0";
+  setTimeout(() => {
     hud.style.display = "none";
-    collapseBtn.style.display = "flex";
-    state.collapsed = true;
-    saveState(state);
-  });
+    hud.style.opacity = "1";
+    showRestoreButton();
+  }, 200);
+  state.collapsed = true;
+  saveState(state);
+};
+
+// добавляем кнопку перед ⚙️
+rightControls.prepend(collapseIcon);
+
+// --- Кнопка восстановления HUD ---
+const restoreButton = document.createElement("div");
+restoreButton.textContent = "HUD";
+restoreButton.style.position = "fixed";
+restoreButton.style.top = "70px"; // ⬇️ ниже от края экрана
+restoreButton.style.right = "20px";
+restoreButton.style.padding = "8px 14px";
+restoreButton.style.fontWeight = "700";
+restoreButton.style.fontSize = "14px";
+restoreButton.style.borderRadius = "8px";
+restoreButton.style.background = "rgba(0,0,0,0.5)";
+restoreButton.style.color = "#fff";
+restoreButton.style.cursor = "pointer";
+restoreButton.style.boxShadow = "0 2px 10px rgba(0,0,0,0.3)";
+restoreButton.style.backdropFilter = "blur(6px)";
+restoreButton.style.webkitBackdropFilter = "blur(6px)";
+restoreButton.style.zIndex = 1000003;
+restoreButton.style.display = "none";
+restoreButton.style.transition = "opacity 0.2s ease";
+
+restoreButton.onclick = () => {
+  restoreButton.style.display = "none";
+  hud.style.display = "flex";
+  hud.style.opacity = "0";
+  setTimeout(() => hud.style.opacity = "1", 10);
+  state.collapsed = false;
+  saveState(state);
+};
+
+document.body.appendChild(restoreButton);
+
+function showRestoreButton() {
+  restoreButton.style.display = "flex";
+  restoreButton.style.opacity = "0";
+  setTimeout(() => restoreButton.style.opacity = "1", 100);
+}
+
+
 
   // ------------------------------
   // Ably subscription
