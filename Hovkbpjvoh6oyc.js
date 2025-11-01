@@ -520,6 +520,44 @@ rowTheme.appendChild(labelTheme);
 rowTheme.appendChild(selTheme);
 settingsModal.appendChild(rowTheme);
 
+// --- ОТОБРАЖЕНИЕ ПИНГА И CPU ---
+const rowPerf = document.createElement("div");
+rowPerf.className = "cs-row";
+rowPerf.style.display = "flex";
+rowPerf.style.flexDirection = "column";
+rowPerf.style.gap = "8px";
+rowPerf.style.marginTop = "6px";
+
+const toggleContainer = (labelText, stateKey) => {
+  const row = document.createElement("div");
+  row.style.display = "flex";
+  row.style.alignItems = "center";
+  row.style.justifyContent = "space-between";
+
+  const label = document.createElement("label");
+  label.textContent = labelText;
+  label.style.fontSize = "14px";
+  label.style.fontWeight = "500";
+  label.style.color = "inherit";
+
+  const toggle = document.createElement("input");
+  toggle.type = "checkbox";
+  toggle.checked = tempState[stateKey];
+  toggle.style.width = "18px";
+  toggle.style.height = "18px";
+  toggle.style.cursor = "pointer";
+
+  toggle.onchange = () => tempState[stateKey] = toggle.checked;
+
+  row.appendChild(label);
+  row.appendChild(toggle);
+  return row;
+};
+
+rowPerf.appendChild(toggleContainer("Показать пинг", "showPing"));
+rowPerf.appendChild(toggleContainer("Показать CPU", "showCpu"));
+settingsModal.appendChild(rowPerf);
+
 // --- КНОПКИ ДЕЙСТВИЙ ---
 // actions (нижние кнопки)
 const actions = document.createElement("div");
@@ -570,8 +608,23 @@ applyBtn.onclick = () => {
   state = { ...state, ...tempState };
   saveState(state);
   applyThemeToElement(hud, state.theme);
+
+  // применяем сразу на живом HUD
+  perfEl.innerHTML = "";
+  if (state.showPing) {
+    const p = document.createElement("div");
+    p.textContent = `⚡ Пинг: ${typeof lastPayload.ping === "number" ? lastPayload.ping.toFixed(3) + " s" : lastPayload.ping ?? "—"}`;
+    perfEl.appendChild(p);
+  }
+  if (state.showCpu) {
+    const c = document.createElement("div");
+    c.textContent = `🧩 CPU: ${lastPayload.cpuLoad ?? "—"}%`;
+    perfEl.appendChild(c);
+  }
+
   crashVal.style.display = state.showCurrentCrash ? "" : "none";
   bottomRow.style.opacity = state.textOpacity;
+
   saveState(state);
   closeSettings();
 };
