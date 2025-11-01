@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         CS2Run HUD (Омск, финальный)
-// @namespace    cs2run.hud
+// @name         CS2Run HUD редизайн 
+// @namespace    cs2runR.hud
 // @version      2.0
 // @description  HUD статистики CS2Run — омское время, настройки, подсветка коэффициента, перетаскивание, ресайз, прогресс/ожидание
 // @match        *://cs2run.bet/*
