@@ -417,10 +417,29 @@ document.getElementById("cs_max24h").textContent = formatVal(lastPayload.max24h)
     settingsBackdrop.className = "cs-settings-backdrop";
 
     settingsModal = document.createElement("div");
-    settingsModal.className = "cs-settings";
-    if ((state.theme === "dark")) settingsModal.classList.add("dark");
-    settingsModal.style.position = "relative";
+settingsModal.className = "cs-settings";
+settingsModal.style.position = "relative";
 
+// применяем тему вручную
+if (state.theme === "dark") {
+  settingsModal.classList.add("dark");
+  settingsModal.style.background = "rgba(28,28,30,0.98)";
+  settingsModal.style.color = "#EEE";
+} else if (state.theme === "light") {
+  settingsModal.style.background = "rgba(255,255,255,0.95)";
+  settingsModal.style.color = "#1C1C1E";
+} else {
+  // auto
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  if (prefersDark) {
+    settingsModal.classList.add("dark");
+    settingsModal.style.background = "rgba(28,28,30,0.98)";
+    settingsModal.style.color = "#EEE";
+  } else {
+    settingsModal.style.background = "rgba(255,255,255,0.95)";
+    settingsModal.style.color = "#1C1C1E";
+  }
+}
     // header
     const header = document.createElement("div");
     header.style.display = "flex";
