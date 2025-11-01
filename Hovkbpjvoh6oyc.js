@@ -301,12 +301,17 @@ titleEl.appendChild(crashVal);
     lastPayload = { ...lastPayload, ...d };
 
     // numbers might be strings - try to keep formatting
-    document.getElementById("cs_avg10").textContent = lastPayload.avg10 ?? "—";
-    document.getElementById("cs_avg25").textContent = lastPayload.avg25 ?? "—";
-    document.getElementById("cs_avg50").textContent = lastPayload.avg50 ?? "—";
-    document.getElementById("cs_totalAvg").textContent = lastPayload.totalAvg ?? "—";
-    document.getElementById("cs_max24h").textContent = lastPayload.max24h ?? "—";
+    function formatVal(v) {
+  if (v == null || v === "—" || v === "") return "—";
+  const num = Number(v);
+  return isNaN(num) ? v : num.toFixed(2) + "x";
+}
 
+document.getElementById("cs_avg10").textContent = formatVal(lastPayload.avg10);
+document.getElementById("cs_avg25").textContent = formatVal(lastPayload.avg25);
+document.getElementById("cs_avg50").textContent = formatVal(lastPayload.avg50);
+document.getElementById("cs_totalAvg").textContent = formatVal(lastPayload.totalAvg);
+document.getElementById("cs_max24h").textContent = formatVal(lastPayload.max24h);
     // perf
     perfEl.innerHTML = "";
     if (state.showPing) {
