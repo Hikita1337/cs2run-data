@@ -859,7 +859,7 @@ rightControls.prepend(collapseIcon);
 const restoreButton = document.createElement("div");
 restoreButton.textContent = "HUD";
 restoreButton.style.position = "fixed";
-restoreButton.style.top = "70px"; // ⬇️ ниже от края экрана
+restoreButton.style.top = "57px"; // ⬇️ ниже от края экрана
 restoreButton.style.right = "20px";
 restoreButton.style.padding = "8px 14px";
 restoreButton.style.fontWeight = "700";
@@ -922,9 +922,9 @@ function showRestoreButton() {
 
   // If HUD should start collapsed
   if (state.collapsed) {
-    hud.style.display = "none";
-    collapseBtn.style.display = "flex";
-  }
+  hud.style.display = "none";
+  showRestoreButton();
+}
 
   // --- convenience: when opening HUD, show overlay waiting for 1s to simulate waiting (optional) ---
   showProgressOverlay(); // show immediately (user asked overlay at open)
