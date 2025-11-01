@@ -448,29 +448,9 @@ if (state.theme === "dark") {
     header.innerHTML = `<div style="font-weight:700">Настройки HUD</div><div style="font-size:12px;color:#888">v2.0</div>`;
     settingsModal.appendChild(header);
 
-    // body rows
-    // bg opacity
-    const rowBg = document.createElement("div"); rowBg.className = "cs-row";
-    const labelBg = document.createElement("label"); labelBg.textContent = "Прозрачность фона";
-    const inputBg = document.createElement("input"); inputBg.type = "range"; inputBg.min = "0.15"; inputBg.max = "1"; inputBg.step = "0.01";
-    inputBg.value = tempState.bgOpacity;
-    inputBg.className = "cs-slider";
-    const valBg = document.createElement("div"); valBg.textContent = Number(inputBg.value).toFixed(2);
-    inputBg.oninput = () => { valBg.textContent = Number(inputBg.value).toFixed(2); tempState.bgOpacity = Number(inputBg.value); };
-    rowBg.appendChild(labelBg); rowBg.appendChild(inputBg); rowBg.appendChild(valBg);
-    settingsModal.appendChild(rowBg);
-
-    // text opacity
-    const rowText = document.createElement("div"); rowText.className = "cs-row";
-    const labelText = document.createElement("label"); labelText.textContent = "Прозрачность текста";
-    const inputText = document.createElement("input"); inputText.type = "range"; inputText.min = "0.5"; inputText.max = "1"; inputText.step = "0.01";
-    inputText.value = tempState.textOpacity;
-    inputText.className = "cs-slider";
-    const valText = document.createElement("div"); valText.textContent = Number(inputText.value).toFixed(2);
-    inputText.oninput = () => { valText.textContent = Number(inputText.value).toFixed(2); tempState.textOpacity = Number(inputText.value); };
-    rowText.appendChild(labelText); rowText.appendChild(inputText); rowText.appendChild(valText);
-    settingsModal.appendChild(rowText);
-
+    
+    
+    
     // theme
     const rowTheme = document.createElement("div"); rowTheme.className = "cs-row";
     const labelTheme = document.createElement("label"); labelTheme.textContent = "Тема";
