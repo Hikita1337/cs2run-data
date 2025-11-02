@@ -829,16 +829,17 @@ settingsModal.appendChild(actions);
   const resizeHandle = document.createElement("div");
   resizeHandle.textContent = "↘️";
   resizeHandle.style.position = "absolute";
-  resizeHandle.style.right = "4.5px";
-  resizeHandle.style.bottom = "4.5px";
-  resizeHandle.style.cursor = "nwse-resize";
-  resizeHandle.style.fontSize = "10.5px";
+resizeHandle.style.right = "6px";
+resizeHandle.style.bottom = "22px"; // ⬆️ подняли кнопку над нижней панелью
+resizeHandle.style.cursor = "nwse-resize";
+resizeHandle.style.fontSize = "10.5px";
 resizeHandle.style.background = "rgba(255,255,255,0.1)";
- resizeHandle.style.borderRadius = "4px";
+resizeHandle.style.borderRadius = "4px";
 resizeHandle.style.padding = "1px 4px";
 resizeHandle.style.opacity = "0.8";
-  resizeHandle.style.userSelect = "none";
-  hud.appendChild(resizeHandle);
+resizeHandle.style.userSelect = "none";
+resizeHandle.style.zIndex = "1000003"; // ✅ добавь вот эту строку
+hud.appendChild(resizeHandle);
 
   const startResize = (e) => {
     e.preventDefault();
