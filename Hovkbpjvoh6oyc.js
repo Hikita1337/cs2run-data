@@ -724,6 +724,80 @@ settingsModal.appendChild(rowOpacity);
   const rowCrash = createToggleRow("Показать текущий коэффициент", "showCurrentCrash");
   settingsModal.append(rowPing, rowCpu, rowCrash);
 
+// --- Автоучастие в розыгрыше ---
+const rowAutoRaffle = document.createElement("div");
+rowAutoRaffle.className = "cs-row";
+
+const labelAutoRaffle = document.createElement("label");
+labelAutoRaffle.textContent = "Автоучастие в розыгрыше";
+
+const toggleAutoRaffle = document.createElement("input");
+toggleAutoRaffle.type = "checkbox";
+toggleAutoRaffle.className = "ios-toggle";
+toggleAutoRaffle.checked = tempState.autoRaffle ?? false;
+toggleAutoRaffle.onchange = () => tempState.autoRaffle = toggleAutoRaffle.checked;
+
+rowAutoRaffle.append(labelAutoRaffle, toggleAutoRaffle);
+settingsModal.appendChild(rowAutoRaffle);
+
+// режим (обычный / кастом)
+const rowRaffleMode = document.createElement("div");
+rowRaffleMode.className = "cs-row";
+const labelRaffleMode = document.createElement("label");
+labelRaffleMode.textContent = "Режим автоучастия";
+
+const selectRaffleMode = document.createElement("select");
+selectRaffleMode.style.width = "110px";
+selectRaffleMode.style.padding = "2px 6px";
+selectRaffleMode.style.borderRadius = "6px";
+["normal", "custom"].forEach(v => {
+  const opt = document.createElement("option");
+  opt.value = v;
+  opt.textContent = v === "normal" ? "Обычный" : "Кастомный";
+  if (tempState.raffleMode === v) opt.selected = true;
+  selectRaffleMode.appendChild(opt);
+});
+selectRaffleMode.onchange = () => tempState.raffleMode = selectRaffleMode.value;
+rowRaffleMode.append(labelRaffleMode, selectRaffleMode);
+settingsModal.appendChild(rowRaffleMode);
+
+// интервалы для кастомного режима
+const rowCustomInterval = document.createElement("div");
+rowCustomInterval.className = "cs-row";
+const labelCustomInterval = document.createElement("label");
+labelCustomInterval.textContent = "Интервал (минуты)";
+const inputCustomInterval = document.createElement("input");
+inputCustomInterval.type = "number";
+inputCustomInterval.min = 5;
+inputCustomInterval.max = 60;
+inputCustomInterval.value = tempState.customInterval ?? 30;
+inputCustomInterval.style.width = "70px";
+inputCustomInterval.oninput = () => tempState.customInterval = Number(inputCustomInterval.value);
+rowCustomInterval.append(labelCustomInterval, inputCustomInterval);
+settingsModal.appendChild(rowCustomInterval);
+
+const rowCustomOffset = document.createElement("div");
+rowCustomOffset.className = "cs-row";
+const labelCustomOffset = document.createElement("label");
+labelCustomOffset.textContent = "Разброс ± (минуты)";
+const inputCustomOffset = document.createElement("input");
+inputCustomOffset.type = "number";
+inputCustomOffset.min = 0;
+inputCustomOffset.max = 10;
+inputCustomOffset.value = tempState.customOffset ?? 1;
+inputCustomOffset.style.width = "70px";
+inputCustomOffset.oninput = () => tempState.customOffset = Number(inputCustomOffset.value);
+rowCustomOffset.append(labelCustomOffset, inputCustomOffset);
+settingsModal.appendChild(rowCustomOffset);
+
+const noteAutoRaffle = document.createElement("div");
+noteAutoRaffle.textContent = "Обычный режим — раз в 30 мин ± 1 мин.";
+noteAutoRaffle.style.fontSize = "11.5px";
+noteAutoRaffle.style.opacity = "0.8";
+noteAutoRaffle.style.margin = "-6px 0 6px 2px";
+settingsModal.appendChild(noteAutoRaffle);
+
+
   // --- Кнопки управления ---
   const actions = document.createElement("div");
   actions.style.display = "flex";
@@ -806,5 +880,75 @@ settingsModal.appendChild(actions);
 
 settingsBackdrop.appendChild(settingsModal);
 document.body.appendChild(settingsBackdrop);
+}
+// =============================
+// 🧩 Автоучастие в розыгрыше
+// =============================
+if (state.autoRaffle) {
+  console.log("🎁 Автоучастие в розыгрыше активно");
+
+  async function joinRaffle() {
+    try {
+      const resp = await fetch("https://cs2run.app/lottery/join", {
+        method: "POST",
+        credentials: "include"
+      });
+      if (resp.ok) {
+        const toast = document.createElement("div");
+        toast.textContent = "✅ Участие в розыгрыше принято!";
+        Object.assign(toast.style, {
+          position: "fixed",
+          bottom: "20px",
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "rgba(0,0,0,0.75)",
+          color: "#fff",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          fontWeight: "600",
+          fontSize: "13px",
+          zIndex: "1000006",
+          opacity: "0",
+          transition: "opacity 0.3s ease"
+        });
+        document.body.appendChild(toast);
+        requestAnimationFrame(() => toast.style.opacity = "1");
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          setTimeout(() => toast.remove(), 400);
+        }, 2000);
+      } else {
+        console.warn("Не удалось принять участие:", await resp.text());
+      }
+    } catch (err) {
+      console.error("Ошибка автоучастия:", err);
+    }
+  }
+
+  // первая попытка
+  joinRaffle();
+
+  const mode = state.raffleMode ?? "normal";
+  if (mode === "normal") {
+    // обычный режим — каждые 30 мин ±1 мин
+    setInterval(() => {
+      const offset = Math.random() * 120000 - 60000;
+      setTimeout(joinRaffle, offset);
+    }, 30 * 60 * 1000);
+  } else {
+    // кастомный режим
+    const base = Math.max(5, state.customInterval ?? 30); // мин
+    const offset = Math.max(0, state.customOffset ?? 1);  // разброс ±
+    function scheduleNext() {
+      const nextMinutes = base + (Math.random() * 2 * offset - offset);
+      const nextMs = nextMinutes * 60 * 1000;
+      console.log(`🕓 Следующее автоучастие через ${nextMinutes.toFixed(1)} мин`);
+      setTimeout(async () => {
+        await joinRaffle();
+        scheduleNext(); // планируем следующее
+      }, nextMs);
+    }
+    scheduleNext();
+  }
 }
 })();
