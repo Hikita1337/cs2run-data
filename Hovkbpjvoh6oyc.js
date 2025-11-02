@@ -204,7 +204,17 @@ if (state.showLoadingScreen) {
     if (document.getElementById("hud_loading_overlay")) hideLoadingOverlay();
   });
 }
-
+// --- Экран ожидания при первом запуске ---
+if (state.showLoadingScreen) {
+  // (твой существующий код создания overlay)
+  // ...
+} else {
+  // 👇 если экран загрузки отключен — сразу показать кнопки
+  gear.style.opacity = "1";
+  gear.style.pointerEvents = "auto";
+  resizeHandle.style.opacity = "0.8";
+  resizeHandle.style.pointerEvents = "auto";
+}
   // ------------------------------
   // Style & animations
   // ------------------------------
