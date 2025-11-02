@@ -23,7 +23,7 @@
   const LS_KEY = "cs2run_hud_state_v2";
   const defaults = {
     top: 20, left: 20, width: 360, height: 200,
-    bgOpacity: 0.15, textOpacity: 1.0, theme: "auto",
+    bgOpacity: 0.15, theme: "auto",
     showPing: true, showCpu: true, showCurrentCrash: true,
     collapsed: false, showLoadingScreen: true
   };
@@ -82,7 +82,7 @@
   function applyThemeToElement(el, theme) {
     if (theme === "dark") {
       el.style.background = `rgba(20,20,20,${state.bgOpacity})`;
-      el.style.color = `rgba(230,230,230,${state.textOpacity})`;
+      el.style.color = `rgba(230,230,230,1)`;
       el.style.boxShadow = "0 2px 12px rgba(0,0,0,0.6)";
       if (el === hud) {
         const bottom = el.querySelector("#cs_perf");
@@ -652,7 +652,29 @@ selTheme.onchange = () => (tempState.theme = selTheme.value);
 rowTheme.append(labelTheme, selTheme);
 settingsModal.appendChild(rowTheme);
 
+  // --- Прозрачность HUD ---
+const rowOpacity = document.createElement("div");
+rowOpacity.className = "cs-row";
 
+const labelOpacity = document.createElement("label");
+labelOpacity.textContent = "Прозрачность HUD";
+
+const sliderOpacity = document.createElement("input");
+sliderOpacity.type = "range";
+sliderOpacity.min = "0";
+sliderOpacity.max = "1";
+sliderOpacity.step = "0.05";
+sliderOpacity.value = tempState.bgOpacity ?? 0.15;
+sliderOpacity.style.flex = "1";
+sliderOpacity.style.marginLeft = "10px";
+sliderOpacity.oninput = () => {
+  tempState.bgOpacity = parseFloat(sliderOpacity.value);
+  applyThemeToElement(hud, tempState.theme); // обновляем сразу визуально
+};
+
+rowOpacity.append(labelOpacity, sliderOpacity);
+settingsModal.appendChild(rowOpacity);
+  
   // --- Новый переключатель: Экран загрузки ---
   const rowLoading = document.createElement("div");
   rowLoading.className = "cs-row";
