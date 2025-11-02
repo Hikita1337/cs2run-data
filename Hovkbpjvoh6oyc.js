@@ -125,25 +125,37 @@
   // append
   document.body.appendChild(hud);
 
-  // --- Экран ожидания при первом запуске ---
+  // --- Экран ожидания при первом запуске (плотный блюр, полностью скрывает HUD) ---
 const loadingOverlay = document.createElement("div");
 loadingOverlay.id = "hud_loading_overlay";
 loadingOverlay.style.position = "absolute";
 loadingOverlay.style.inset = "0";
-loadingOverlay.style.background = "rgba(0,0,0,0.75)";
+loadingOverlay.style.background = "rgba(0,0,0,0.55)";
+loadingOverlay.style.backdropFilter = "blur(20px)";
+loadingOverlay.style.webkitBackdropFilter = "blur(20px)";
+loadingOverlay.style.borderRadius = "10px";
 loadingOverlay.style.display = "flex";
 loadingOverlay.style.flexDirection = "column";
 loadingOverlay.style.alignItems = "center";
 loadingOverlay.style.justifyContent = "center";
-loadingOverlay.style.gap = "20px";
+loadingOverlay.style.gap = "22px";
 loadingOverlay.style.zIndex = "1000002";
 loadingOverlay.style.transition = "opacity 0.6s ease";
+loadingOverlay.style.pointerEvents = "none"; // позволяет перетаскивать HUD, даже во время загрузки
 
 loadingOverlay.innerHTML = `
-  <img src="https://cs2run.bet/img/crash/begun-v-1.gif" style="width:120px;height:auto;">
-  <div style="font-size:16px;color:white;font-weight:600;">Ждём завершения игры…</div>
-  <div style="width:240px;height:10px;background:rgba(255,255,255,0.2);border-radius:8px;overflow:hidden;">
-    <div id="hud_loading_fill" style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);transition:width 0.3s linear;"></div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+    <img src="https://cs2run.bet/img/crash/begun-v-1.gif" 
+         style="width:130px;height:auto;filter:drop-shadow(0 0 10px rgba(0,0,0,0.4));">
+    <div style="font-size:17px;color:white;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.6);">
+      Ждём завершения игры…
+    </div>
+    <div style="width:260px;height:10px;background:rgba(255,255,255,0.25);
+                border-radius:8px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,0.3);">
+      <div id="hud_loading_fill" 
+           style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);
+                  transition:width 0.3s linear;"></div>
+    </div>
   </div>
 `;
 
