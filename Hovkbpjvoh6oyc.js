@@ -128,7 +128,7 @@
   // --- Экран ожидания при первом запуске ---
 const loadingOverlay = document.createElement("div");
 loadingOverlay.id = "hud_loading_overlay";
-loadingOverlay.style.position = "fixed";
+loadingOverlay.style.position = "absolute";
 loadingOverlay.style.inset = "0";
 loadingOverlay.style.background = "rgba(0,0,0,0.75)";
 loadingOverlay.style.display = "flex";
@@ -147,7 +147,7 @@ loadingOverlay.innerHTML = `
   </div>
 `;
 
-document.body.appendChild(loadingOverlay);
+hud.appendChild(loadingOverlay);
 
 // Анимация заполнения прогресс-бара
 let loadProgress = 0;
