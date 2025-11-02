@@ -340,39 +340,6 @@ gear.style.pointerEvents = "none";
   bottomRow.appendChild(updatedEl);
   hud.appendChild(bottomRow);
   
- // --- Автоматическое выравнивание нижней строки ---
-bottomRow.style.transition = "all 0.3s ease";
-
-function updateBottomLayout() {
-  const hasPerf = state.showPing || state.showCpu;
-
-  // всегда оставляем немного места справа под кнопку ↘️
-  updatedEl.style.paddingRight = "22px";
-  updatedEl.style.boxSizing = "border-box";
-
-  if (!hasPerf) {
-    // скрываем блок с пингом и CPU, двигаем "Обновлено" влево
-    perfEl.style.display = "none";
-    bottomRow.style.justifyContent = "flex-start";
-    updatedEl.style.marginLeft = "10px";
-    updatedEl.style.width = "100%";
-    updatedEl.style.textAlign = "left";
-  } else {
-    // отображаем обе части и выравниваем равномерно
-    perfEl.style.display = "flex";
-    bottomRow.style.justifyContent = "space-between";
-    updatedEl.style.marginLeft = "0";
-    updatedEl.style.width = "";
-    updatedEl.style.textAlign = "";
-  }
-}
-
-
-
-
-// заменяем старое место, где создавался perfEl, на вызов этой функции
-  
-// --- Стеклянный эффект для верхней и нижней панелей ---
 
 // Верхняя панель (topRow)
 topRow.style.background = "rgba(255,255,255,0.08)"; // светлая дымка
@@ -955,13 +922,19 @@ bottomRow.style.transition = "all 0.3s ease";
 function updateBottomLayout() {
   const hasPerf = state.showPing || state.showCpu;
 
+  // Всегда оставляем немного места справа под кнопку ↘️
+  updatedEl.style.paddingRight = "26px";
+  updatedEl.style.boxSizing = "border-box";
+
   if (!hasPerf) {
+    // Скрываем блок с пингом и CPU, двигаем "Обновлено" влево
     perfEl.style.display = "none";
     bottomRow.style.justifyContent = "flex-start";
     updatedEl.style.marginLeft = "10px";
     updatedEl.style.width = "100%";
     updatedEl.style.textAlign = "left";
   } else {
+    // Отображаем обе части и выравниваем равномерно
     perfEl.style.display = "flex";
     bottomRow.style.justifyContent = "space-between";
     updatedEl.style.marginLeft = "0";
