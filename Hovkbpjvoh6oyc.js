@@ -191,9 +191,6 @@ function hideLoadingOverlay() {
   }, 600);
 }
 
-hud.appendChild(loadingOverlay);
-
-  
 
   // ------------------------------
   // Style & animations
@@ -338,41 +335,31 @@ gear.style.pointerEvents = "none";
   bottomRow.appendChild(updatedEl);
   hud.appendChild(bottomRow);
   
-  // --- Автоматическое выравнивание нижней строки ---
+ // --- Автоматическое выравнивание нижней строки ---
 bottomRow.style.transition = "all 0.3s ease";
 
-// функция обновления положения
 function updateBottomLayout() {
   const hasPerf = state.showPing || state.showCpu;
 
   if (!hasPerf) {
-    // оба выключены — тянем обновление влево полностью
-    bottomRow.style.justifyContent = "flex-start";
+    // скрываем блок с пингом и CPU, двигаем "Обновлено" влево
     perfEl.style.display = "none";
-    updatedEl.style.marginLeft = "8px";
+    bottomRow.style.justifyContent = "flex-start";
+    updatedEl.style.marginLeft = "10px";
+    updatedEl.style.width = "100%";
+    updatedEl.style.textAlign = "left";
   } else {
-    // если хотя бы один включен — показываем блок и выравниваем равномерно
+    // отображаем обе части и выравниваем равномерно
     perfEl.style.display = "flex";
     bottomRow.style.justifyContent = "space-between";
     updatedEl.style.marginLeft = "0";
+    updatedEl.style.width = "";
+    updatedEl.style.textAlign = "";
   }
 }
 
-// вызывать при каждом изменении настроек
-function refreshPerfVisibility() {
-  perfEl.innerHTML = "";
-  if (state.showPing) {
-    const p = document.createElement("div");
-    p.textContent = `⚡ Пинг: ${typeof lastPayload.ping === "number" ? lastPayload.ping.toFixed(3) + " s" : lastPayload.ping ?? "—"}`;
-    perfEl.appendChild(p);
-  }
-  if (state.showCpu) {
-    const c = document.createElement("div");
-    c.textContent = `🧩 CPU: ${lastPayload.cpuLoad ?? "—"}%`;
-    perfEl.appendChild(c);
-  }
-  updateBottomLayout();
-}
+
+
 
 // заменяем старое место, где создавался perfEl, на вызов этой функции
   
@@ -418,7 +405,28 @@ hud.style.padding = "0";
     if (c < 25) return "#FFD60A";            // yellow
     return null;                             // gradient handled separately
   }
+function refreshPerfVisibility() {
+  perfEl.innerHTML = "";
 
+  if (state.showPing) {
+    const p = document.createElement("div");
+    p.textContent = `⚡ Пинг: ${
+      typeof lastPayload.ping === "number"
+        ? lastPayload.ping.toFixed(3) + " s"
+        : lastPayload.ping ?? "—"
+    }`;
+    perfEl.appendChild(p);
+  }
+
+  if (state.showCpu) {
+    const c = document.createElement("div");
+    c.textContent = `🧩 CPU: ${lastPayload.cpuLoad ?? "—"}%`;
+    perfEl.appendChild(c);
+  }
+
+  // выравнивание нижней строки
+  updateBottomLayout();
+}
   function renderPayload(d) {
     // stats: avg10, avg25, avg50, totalAvg, max24h, count, updatedAt, currentPeriod, ping, cpuLoad, lastCrash (optional)
     lastPayload = { ...lastPayload, ...d };
@@ -770,10 +778,22 @@ settingsModal.appendChild(actions);
   let raf = null;
 
   const startDrag = (e) => {
-    e.preventDefault();
-    const t = e.touches ? e.touches[0] : e;
-    dragInfo = { x: t.clientX, y: t.clientY, left: hud.offsetLeft, top: hud.offsetTop };
-  };
+  // если клик по интерактивному элементу — не начинаем перетаскивание
+  const tgt = e.target;
+  if (tgt.closest && (
+      tgt.closest('.cs-gear') ||         // ⚙️
+      tgt.closest('button') ||           // любые кнопки внутри
+      tgt === collapseIcon ||            // иконка сворачивания
+      tgt.closest('.some-other-control') // если будут другие контролы — добавь селектор
+    )) {
+    return;
+  }
+
+  // теперь безопасно начинаем перетаскивание
+  // не вызывать preventDefault до проверки — иначе блокируем click
+  const t = e.touches ? e.touches[0] : e;
+  dragInfo = { x: t.clientX, y: t.clientY, left: hud.offsetLeft, top: hud.offsetTop };
+};
   const onDrag = (e) => {
     if (!dragInfo) return;
     const t = e.touches ? e.touches[0] : e;
@@ -795,8 +815,9 @@ settingsModal.appendChild(actions);
 
   // attach drag to moveBtn
   // we already have moveBtn icon (moveBtn was earlier but not created - create small area)
-  const dragHandle = titleEl; // allow dragging by title
+  const dragHandle = topRow; // allow dragging by title
   dragHandle.style.cursor = "grab";
+  dragHandle.style.touchAction = "none";
   dragHandle.addEventListener("mousedown", startDrag);
   dragHandle.addEventListener("touchstart", startDrag, { passive: false });
   document.addEventListener("mousemove", onDrag);
@@ -916,7 +937,33 @@ function showRestoreButton() {
 }
 
 
+// --- Автоматическое выравнивание нижней строки ---
+bottomRow.style.transition = "all 0.3s ease";
 
+function updateBottomLayout() {
+  const hasPerf = state.showPing || state.showCpu;
+
+  if (!hasPerf) {
+    perfEl.style.display = "none";
+    bottomRow.style.justifyContent = "flex-start";
+    updatedEl.style.marginLeft = "10px";
+    updatedEl.style.width = "100%";
+    updatedEl.style.textAlign = "left";
+  } else {
+    perfEl.style.display = "flex";
+    bottomRow.style.justifyContent = "space-between";
+    updatedEl.style.marginLeft = "0";
+    updatedEl.style.width = "";
+    updatedEl.style.textAlign = "";
+  }
+}
+
+// --- Стеклянный эффект --
+// (всё как у тебя дальше)
+
+
+refreshPerfVisibility();
+updateBottomLayout();
   // ------------------------------
   // Ably subscription
   // ------------------------------
