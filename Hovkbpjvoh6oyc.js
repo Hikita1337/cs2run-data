@@ -678,10 +678,43 @@ function openSettings() {
   applyBtn.textContent = "Применить";
   applyBtn.style.cssText = baseBtnStyle + "background:#34C759;color:#fff;";
   applyBtn.onclick = () => {
-    state = { ...state, ...tempState };
-    saveState(state);
-    location.reload();
-  };
+  state = { ...state, ...tempState };
+  saveState(state);
+
+  // Применяем изменения "на лету"
+  applyThemeToElement(hud, state.theme);
+  crashVal.style.display = state.showCurrentCrash ? "" : "none";
+  refreshPerfVisibility();
+
+  // Мгновенно скрываем/показываем экран загрузки при включении/выключении
+  const overlay = document.getElementById("hud_loading_overlay");
+  if (overlay && !state.showLoadingScreen) overlay.remove();
+
+  // Мягкое уведомление "Настройки сохранены"
+  const toast = document.createElement("div");
+  toast.textContent = "✅ Настройки сохранены";
+  toast.style.position = "fixed";
+  toast.style.bottom = "20px";
+  toast.style.left = "50%";
+  toast.style.transform = "translateX(-50%)";
+  toast.style.background = "rgba(0,0,0,0.75)";
+  toast.style.color = "#fff";
+  toast.style.padding = "10px 18px";
+  toast.style.borderRadius = "8px";
+  toast.style.fontWeight = "600";
+  toast.style.fontSize = "14px";
+  toast.style.zIndex = "1000005";
+  toast.style.opacity = "0";
+  toast.style.transition = "opacity 0.4s ease";
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.style.opacity = "1");
+  setTimeout(() => {
+    toast.style.opacity = "0";
+    setTimeout(() => toast.remove(), 400);
+  }, 1800);
+
+  closeSettings();
+};
 
   actions.append(resetBtn, closeBtn, applyBtn);
   settingsModal.appendChild(actions);
