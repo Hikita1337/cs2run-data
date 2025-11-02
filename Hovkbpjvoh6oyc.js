@@ -449,6 +449,7 @@ loadingOverlay.style.top = "0";
 loadingOverlay.style.left = "0";
 loadingOverlay.style.width = "100%";
 loadingOverlay.style.height = "100%";
+loadingOverlay.style.marginTop = "35px"; // смещение вниз, чтобы не перекрывал шапку
 loadingOverlay.style.display = "flex";
 loadingOverlay.style.flexDirection = "column";
 loadingOverlay.style.alignItems = "center";
@@ -764,35 +765,39 @@ settingsModal.appendChild(rowOpacity);
 const toast = document.createElement("div");
 toast.textContent = "✅ Настройки сохранены";
 
-// Добавляем в сам HUD, чтобы надпись позиционировалась относительно него
-hud.appendChild(toast);
+// Добавляем внутрь HUD (чтобы позиционировалось относительно него)
+document.body.appendChild(toast);
 
-// Динамически центрируем надпись внутри HUD
-toast.style.position = "absolute";
+// Стили аккуратного уведомления
+toast.style.position = "fixed";
 toast.style.top = "50%";
 toast.style.left = "50%";
-toast.style.transform = "translate(-50%, -50%)";
-toast.style.background = "rgba(0,0,0,0.75)";
+toast.style.transform = "translate(-50%, -50%) scale(0.95)";
+toast.style.background = "rgba(0,0,0,0.6)";
 toast.style.color = "#fff";
-toast.style.padding = "10px 18px";
-toast.style.borderRadius = "8px";
-toast.style.fontWeight = "600";
-toast.style.fontSize = "14px";
+toast.style.padding = "6px 12px";
+toast.style.borderRadius = "6px";
+toast.style.fontWeight = "500";
+toast.style.fontSize = "12.5px";
 toast.style.zIndex = "1000005";
 toast.style.opacity = "0";
-toast.style.transition = "opacity 0.4s ease";
+toast.style.transition = "opacity 0.35s ease, transform 0.35s ease";
 toast.style.pointerEvents = "none";
 toast.style.textAlign = "center";
-toast.style.backdropFilter = "blur(6px)";
-toast.style.webkitBackdropFilter = "blur(6px)";
-toast.style.maxWidth = "90%";
+toast.style.backdropFilter = "blur(4px)";
+toast.style.webkitBackdropFilter = "blur(4px)";
+toast.style.boxShadow = "0 2px 8px rgba(0,0,0,0.25)";
 
 // Анимация появления и исчезновения
-requestAnimationFrame(() => toast.style.opacity = "1");
+requestAnimationFrame(() => {
+  toast.style.opacity = "1";
+  toast.style.transform = "translate(-50%, -50%) scale(1)";
+});
 setTimeout(() => {
   toast.style.opacity = "0";
+  toast.style.transform = "translate(-50%, -50%) scale(0.95)";
   setTimeout(() => toast.remove(), 400);
-}, 1800);
+}, 1600);
 }; // ← закрывает applyBtn.onclick
 
 // ⬇️ Всё, что ниже — уже вне функции
