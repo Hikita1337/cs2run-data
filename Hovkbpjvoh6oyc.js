@@ -26,7 +26,7 @@
   // Defaults & storage helpers
   // ------------------------------
   const LS_KEY = "cs2run_hud_state_v2";
-  const defaults = {
+const defaults = {
   top: 20,
   left: 20,
   width: 360,
@@ -38,7 +38,7 @@
   showCpu: true,
   showCurrentCrash: true,
   collapsed: false,
-    showLoadingScreen: true
+  showLoadingScreen: true
 };
 
   function loadState() {
