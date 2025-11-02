@@ -655,21 +655,19 @@ settingsModal.appendChild(rowTheme);
   // --- Прозрачность HUD ---
 const rowOpacity = document.createElement("div");
 rowOpacity.className = "cs-row";
-
 const labelOpacity = document.createElement("label");
 labelOpacity.textContent = "Прозрачность HUD";
 
 const sliderOpacity = document.createElement("input");
 sliderOpacity.type = "range";
-sliderOpacity.min = "0";
+sliderOpacity.min = "0.5";
 sliderOpacity.max = "1";
 sliderOpacity.step = "0.05";
 sliderOpacity.value = tempState.bgOpacity ?? 0.15;
-sliderOpacity.style.flex = "1";
-sliderOpacity.style.marginLeft = "10px";
+sliderOpacity.style.width = "75%"; // ← уменьшено на 20% (было 100%)
 sliderOpacity.oninput = () => {
   tempState.bgOpacity = parseFloat(sliderOpacity.value);
-  applyThemeToElement(hud, tempState.theme); // обновляем сразу визуально
+  applyThemeToElement(hud, tempState.theme);
 };
 
 rowOpacity.append(labelOpacity, sliderOpacity);
