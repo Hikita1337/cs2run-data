@@ -793,13 +793,13 @@ setTimeout(() => {
   toast.style.opacity = "0";
   setTimeout(() => toast.remove(), 400);
 }, 1800);
+}; // ← закрывает applyBtn.onclick
 
+// ⬇️ Всё, что ниже — уже вне функции
 actions.append(resetBtn, closeBtn, applyBtn);
 settingsModal.appendChild(actions);
 
 settingsBackdrop.appendChild(settingsModal);
 document.body.appendChild(settingsBackdrop);
-closeSettings();
 }
-
 })();
