@@ -37,7 +37,8 @@
   showPing: true,
   showCpu: true,
   showCurrentCrash: true,
-  collapsed: false
+  collapsed: false,
+    showLoadingScreen: true
 };
 
   function loadState() {
@@ -126,76 +127,83 @@
   // append
   document.body.appendChild(hud);
 
+
 // --- Экран ожидания при первом запуске ---
-const loadingOverlay = document.createElement("div");
-loadingOverlay.id = "hud_loading_overlay";
-loadingOverlay.style.position = "absolute";
-loadingOverlay.style.top = "36px"; // верхний отступ, чтобы шапка HUD осталась видимой
-loadingOverlay.style.left = "0";
-loadingOverlay.style.right = "0";
-loadingOverlay.style.bottom = "0";
-loadingOverlay.style.background = "rgba(0,0,0,0.8)"; // плотный полупрозрачный фон
-loadingOverlay.style.backdropFilter = "blur(120px)";
-loadingOverlay.style.webkitBackdropFilter = "blur(120px)";
-loadingOverlay.style.borderRadius = "0 0 10px 10px";
-loadingOverlay.style.display = "flex";
-loadingOverlay.style.flexDirection = "column";
-loadingOverlay.style.alignItems = "center";
-loadingOverlay.style.justifyContent = "center";
-loadingOverlay.style.gap = "22px";
-loadingOverlay.style.zIndex = "1000002";
-loadingOverlay.style.transition = "opacity 0.6s ease";
-loadingOverlay.style.pointerEvents = "none"; // можно двигать HUD во время загрузки
-loadingOverlay.style.boxShadow = "inset 0 0 40px rgba(0,0,0,0.6)";
+if (state.showLoadingScreen) {
+  const loadingOverlay = document.createElement("div");
+  loadingOverlay.id = "hud_loading_overlay";
+  loadingOverlay.style.position = "absolute";
+  loadingOverlay.style.top = "36px";
+  loadingOverlay.style.left = "0";
+  loadingOverlay.style.right = "0";
+  loadingOverlay.style.bottom = "0";
+  loadingOverlay.style.background = "rgba(0,0,0,0.8)";
+  loadingOverlay.style.backdropFilter = "blur(120px)";
+  loadingOverlay.style.webkitBackdropFilter = "blur(120px)";
+  loadingOverlay.style.borderRadius = "0 0 10px 10px";
+  loadingOverlay.style.display = "flex";
+  loadingOverlay.style.flexDirection = "column";
+  loadingOverlay.style.alignItems = "center";
+  loadingOverlay.style.justifyContent = "center";
+  loadingOverlay.style.gap = "22px";
+  loadingOverlay.style.zIndex = "1000002";
+  loadingOverlay.style.transition = "opacity 0.6s ease";
+  loadingOverlay.style.pointerEvents = "none";
+  loadingOverlay.style.boxShadow = "inset 0 0 40px rgba(0,0,0,0.6)";
 
-loadingOverlay.innerHTML = `
-  <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-    <img src="https://cs2run.bet/img/crash/begun-v-1.gif"
-         style="width:130px;height:auto;filter:drop-shadow(0 0 10px rgba(0,0,0,0.4));">
-    <div style="font-size:17px;color:white;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.6);">
-      Ждём завершения игры…
+  loadingOverlay.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
+      <img src="https://cs2run.bet/img/crash/begun-v-1.gif"
+           style="width:130px;height:auto;filter:drop-shadow(0 0 10px rgba(0,0,0,0.4));">
+      <div style="font-size:17px;color:white;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.6);">
+        Ждём завершения игры…
+      </div>
+      <div style="width:260px;height:10px;background:rgba(255,255,255,0.25);
+                  border-radius:8px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,0.3);">
+        <div id="hud_loading_fill"
+             style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);
+                    transition:width 0.3s linear;"></div>
+      </div>
     </div>
-    <div style="width:260px;height:10px;background:rgba(255,255,255,0.25);
-                border-radius:8px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,0.3);">
-      <div id="hud_loading_fill"
-           style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);
-                  transition:width 0.3s linear;"></div>
-    </div>
-  </div>
-`;
+  `;
 
-hud.appendChild(loadingOverlay);
+  hud.appendChild(loadingOverlay);
 
-// Плавное появление оверлея
-loadingOverlay.style.opacity = "0";
-setTimeout(() => (loadingOverlay.style.opacity = "1"), 50);
-
-// Анимация прогресса
-let loadProgress = 0;
-const fill = loadingOverlay.querySelector("#hud_loading_fill");
-const progressTimer = setInterval(() => {
-  loadProgress += Math.random() * 4;
-  if (loadProgress > 95) loadProgress = 95;
-  fill.style.width = loadProgress + "%";
-}, 400);
-
-// Функция скрытия экрана загрузки и возврата кнопки ⚙️
-function hideLoadingOverlay() {
-  clearInterval(progressTimer);
+  // Плавное появление
   loadingOverlay.style.opacity = "0";
-  setTimeout(() => {
-    loadingOverlay.remove();
-    // возвращаем кнопку ⚙️
-    gear.style.opacity = "1";
-    gear.style.pointerEvents = "auto";
-    // 🔸 плавно показываем resize-кнопку
-    setTimeout(() => {
-      resizeHandle.style.pointerEvents = "auto";
-      resizeHandle.style.opacity = "0.8";
-    }, 150);
-  }, 600);
-}
+  setTimeout(() => (loadingOverlay.style.opacity = "1"), 50);
 
+  // Анимация прогресса
+  let loadProgress = 0;
+  const fill = loadingOverlay.querySelector("#hud_loading_fill");
+  const progressTimer = setInterval(() => {
+    loadProgress += Math.random() * 4;
+    if (loadProgress > 95) loadProgress = 95;
+    fill.style.width = loadProgress + "%";
+  }, 400);
+
+  // Функция скрытия экрана загрузки
+  function hideLoadingOverlay() {
+    clearInterval(progressTimer);
+    loadingOverlay.style.opacity = "0";
+    setTimeout(() => {
+      loadingOverlay.remove();
+      gear.style.opacity = "1";
+      gear.style.pointerEvents = "auto";
+      setTimeout(() => {
+        resizeHandle.style.pointerEvents = "auto";
+        resizeHandle.style.opacity = "0.8";
+      }, 150);
+    }, 600);
+  }
+
+  // Скрываем, когда пришли данные
+  channel.subscribe("update", (msg) => {
+    const data = msg.data || {};
+    renderPayload(data);
+    if (document.getElementById("hud_loading_overlay")) hideLoadingOverlay();
+  });
+}
 
   // ------------------------------
   // Style & animations
@@ -590,6 +598,8 @@ const rowCpu = createToggleRow("Показать CPU", "showCpu");
 
 settingsModal.appendChild(rowPing);
 settingsModal.appendChild(rowCpu);
+const rowLoading = createToggleRow("Экран загрузки", "showLoadingScreen");
+settingsModal.appendChild(rowLoading);
 
 // --- iOS стиль для тумблеров ---
 const toggleStyle = document.createElement("style");
@@ -953,11 +963,14 @@ updateBottomLayout();
   // Ably subscription
   // ------------------------------
   channel.subscribe("update", (msg) => {
-    const data = msg.data || {};
- 
-    // render
-    renderPayload(data);
-    if (document.getElementById("hud_loading_overlay")) hideLoadingOverlay();
+  const data = msg.data || {};
+  renderPayload(data);
+  // Если экран загрузки включен — плавно скрываем
+  if (state.showLoadingScreen && document.getElementById("hud_loading_overlay")) {
+    const overlay = document.getElementById("hud_loading_overlay");
+    overlay.style.opacity = "0";
+    setTimeout(() => overlay.remove(), 600);
+  }
 });
   
 
