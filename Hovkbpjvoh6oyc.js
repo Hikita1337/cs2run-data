@@ -106,19 +106,56 @@
   // ------------------------------
   // Add styles / animation
   // ------------------------------
-  const style = document.createElement("style");
-  style.textContent = `
-    @keyframes cs_highlight { 0% { transform: scale(1.03); filter: brightness(1.15); opacity:0.9 } 100% { transform: scale(1); filter: brightness(1); opacity:1 } }
-    .cs-highlight { animation: cs_highlight .5s ease; }
-    .cs-settings-backdrop { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index: 1000001; background: rgba(0,0,0,0.25); }
-    .cs-settings { width: 46vw; max-width: 720px; min-width: 320px; height: 52vh; background: rgba(255,255,255,0.98); border-radius: 12px; padding: 14px; box-shadow: 0 6px 30px rgba(0,0,0,0.4); display:flex; flex-direction:column; gap:10px; box-sizing: border-box; }
-    .cs-settings.dark { background: rgba(28,28,30,0.98); color: #EEE; }
-    .cs-row { display:flex; align-items:center; gap:10px; justify-content:space-between; }
-    .cs-row label { font-size:13px; }
-    .cs-gear { position:absolute; right:10px; top:8px; cursor:pointer; user-select:none; }
-    @media (max-width: 600px) { .cs-settings { width: 86vw; height: 60vh; } hud { width: 92vw !important; left: 4vw !important; } }
-  `;
-  document.head.appendChild(style);
+const style = document.createElement("style");
+style.textContent = `
+  @keyframes cs_highlight {
+    0% { transform: scale(1.03); filter: brightness(1.15); opacity: 0.9; }
+    100% { transform: scale(1); filter: brightness(1); opacity: 1; }
+  }
+  .cs-highlight { animation: cs_highlight .5s ease; }
+  .cs-settings-backdrop { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; z-index: 1000001; background: rgba(0,0,0,0.25); }
+  .cs-settings { width: 46vw; max-width: 720px; min-width: 320px; height: 52vh; background: rgba(255,255,255,0.98); border-radius: 12px; padding: 14px; box-shadow: 0 6px 30px rgba(0,0,0,0.4); display:flex; flex-direction:column; gap:10px; box-sizing: border-box; }
+  .cs-settings.dark { background: rgba(28,28,30,0.98); color: #EEE; }
+  .cs-row { display:flex; align-items:center; gap:10px; justify-content:space-between; }
+  .cs-row label { font-size:13px; }
+  .cs-gear { position:absolute; right:10px; top:8px; cursor:pointer; user-select:none; }
+
+  /* --- стили тумблеров iOS --- */
+  .ios-toggle {
+    appearance: none;
+    width: 38px;
+    height: 20px;
+    background: #ccc;
+    border-radius: 10px;
+    position: relative;
+    outline: none;
+    cursor: pointer;
+    transition: background 0.25s ease;
+  }
+  .ios-toggle::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    transition: transform 0.25s ease;
+  }
+  .ios-toggle:checked {
+    background: #34C759;
+  }
+  .ios-toggle:checked::before {
+    transform: translateX(18px);
+  }
+
+  @media (max-width: 600px) {
+    .cs-settings { width: 86vw; height: 60vh; }
+    hud { width: 92vw !important; left: 4vw !important; }
+  }
+`;
+document.head.appendChild(style);
 
   // ------------------------------
   // HUD inner structure (title, stats, bottom row)
@@ -287,13 +324,8 @@
     state.collapsed = false; saveState(state);
   };
   document.body.appendChild(restoreButton);
-  // 🧩 Починка: включаем элементы, если экран загрузки выключен
-if (!state.showLoadingScreen) {
-  gear.style.opacity = "1";
-  gear.style.pointerEvents = "auto";
-  resizeHandle.style.opacity = "0.8";
-  resizeHandle.style.pointerEvents = "auto";
-}
+
+
   function showRestoreButton(){
     restoreButton.style.display = "flex";
     restoreButton.style.opacity = "0";
@@ -492,73 +524,170 @@ if (!state.showLoadingScreen) {
 
   // expose openSettings (implement the full modal code if you haven't moved it)
   gear.addEventListener("click", openSettings);
+// 🧩 Починка: включаем кнопки, если экран загрузки выключен
+setTimeout(() => {
+  if (!state.showLoadingScreen) {
+    requestAnimationFrame(() => {
+      gear.style.opacity = "1";
+      gear.style.pointerEvents = "auto";
+      resizeHandle.style.opacity = "0.8";
+      resizeHandle.style.pointerEvents = "auto";
+    });
+  }
+}, 500);
+
+// вспомогательные переменные и функции для настроек
+let settingsBackdrop = null;
+let settingsModal = null;
+let tempState = null;
+
+// базовый стиль кнопок
+const baseBtnStyle = `
+  flex:1;
+  padding:8px 0;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:13px;
+`;
+
+// функция создания переключателя
+function createToggleRow(labelText, key) {
+  const row = document.createElement("div");
+  row.className = "cs-row";
+
+  const label = document.createElement("label");
+  label.textContent = labelText;
+
+  const input = document.createElement("input");
+  input.type = "checkbox";
+  input.className = "ios-toggle";
+  input.checked = tempState[key] ?? true;
+  input.onchange = () => (tempState[key] = input.checked);
+
+  row.append(label, input);
+  return row;
+}
+
+// функция закрытия настроек
+function closeSettings() {
+  if (!settingsBackdrop) return;
+  settingsBackdrop.remove();
+  settingsBackdrop = null;
+  settingsModal = null;
+}
 
 function openSettings() {
-  const backdrop = document.createElement("div");
-  backdrop.className = "cs-settings-backdrop";
+  if (settingsBackdrop) return;
+  tempState = { ...state };
 
-  const modal = document.createElement("div");
-  modal.className = "cs-settings";
-  if (state.theme === "dark") modal.classList.add("dark");
+  settingsBackdrop = document.createElement("div");
+  settingsBackdrop.className = "cs-settings-backdrop";
 
-  modal.innerHTML = `
-    <h3 style="margin-top:0;">⚙️ Настройки HUD</h3>
+  settingsModal = document.createElement("div");
+  settingsModal.className = "cs-settings";
+  settingsModal.style.position = "relative";
 
-    <div class="cs-row">
-      <label>Отображать экран загрузки:</label>
-      <input type="checkbox" id="showLoadingScreen" ${state.showLoadingScreen ? "checked" : ""}>
-    </div>
+  // применяем тему вручную
+  if (state.theme === "dark") {
+    settingsModal.classList.add("dark");
+    settingsModal.style.background = "rgba(28,28,30,0.98)";
+    settingsModal.style.color = "#EEE";
+  } else if (state.theme === "light") {
+    settingsModal.style.background = "rgba(255,255,255,0.95)";
+    settingsModal.style.color = "#1C1C1E";
+  } else {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (prefersDark) {
+      settingsModal.classList.add("dark");
+      settingsModal.style.background = "rgba(28,28,30,0.98)";
+      settingsModal.style.color = "#EEE";
+    } else {
+      settingsModal.style.background = "rgba(255,255,255,0.95)";
+      settingsModal.style.color = "#1C1C1E";
+    }
+  }
 
-    <div class="cs-row">
-      <label>Показывать текущий коэффициент:</label>
-      <input type="checkbox" id="showCurrentCrash" ${state.showCurrentCrash ? "checked" : ""}>
-    </div>
+  // --- Заголовок ---
+  const header = document.createElement("div");
+  header.style.display = "flex";
+  header.style.justifyContent = "space-between";
+  header.style.alignItems = "center";
+  header.innerHTML = `<div style="font-weight:700">Настройки HUD</div><div style="font-size:12px;color:#888">v2.0</div>`;
+  settingsModal.appendChild(header);
 
-    <div class="cs-row">
-      <label>Показать пинг:</label>
-      <input type="checkbox" id="showPing" ${state.showPing ? "checked" : ""}>
-    </div>
+  // --- Тема ---
+  const rowTheme = document.createElement("div");
+  rowTheme.className = "cs-row";
+  const labelTheme = document.createElement("label");
+  labelTheme.textContent = "Тема";
+  const selTheme = document.createElement("select");
+  ["auto", "light", "dark"].forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    if (tempState.theme === t) opt.selected = true;
+    selTheme.appendChild(opt);
+  });
+  selTheme.onchange = () => tempState.theme = selTheme.value;
+  rowTheme.append(labelTheme, selTheme);
+  settingsModal.appendChild(rowTheme);
 
-    <div class="cs-row">
-      <label>Показать загрузку CPU:</label>
-      <input type="checkbox" id="showCpu" ${state.showCpu ? "checked" : ""}>
-    </div>
+  // --- Новый переключатель: Экран загрузки ---
+  const rowLoading = document.createElement("div");
+  rowLoading.className = "cs-row";
+  const labelLoading = document.createElement("label");
+  labelLoading.textContent = "Экран загрузки (вкл/выкл)";
+  const toggleLoading = document.createElement("input");
+  toggleLoading.type = "checkbox";
+  toggleLoading.className = "ios-toggle";
+  toggleLoading.checked = tempState.showLoadingScreen ?? true;
+  toggleLoading.onchange = () => tempState.showLoadingScreen = toggleLoading.checked;
+  rowLoading.append(labelLoading, toggleLoading);
+  settingsModal.appendChild(rowLoading);
 
-    <div class="cs-row">
-      <label>Прозрачность фона:</label>
-      <input type="range" id="bgOpacity" min="0" max="1" step="0.05" value="${state.bgOpacity}">
-    </div>
+  // --- Остальные тумблеры ---
+  const rowPing = createToggleRow("Показать пинг", "showPing");
+  const rowCpu = createToggleRow("Показать CPU", "showCpu");
+  const rowCrash = createToggleRow("Показать текущий коэффициент", "showCurrentCrash");
+  settingsModal.append(rowPing, rowCpu, rowCrash);
 
-    <div class="cs-row">
-      <label>Тема:</label>
-      <select id="theme">
-        <option value="auto" ${state.theme === "auto" ? "selected" : ""}>Авто</option>
-        <option value="dark" ${state.theme === "dark" ? "selected" : ""}>Тёмная</option>
-        <option value="light" ${state.theme === "light" ? "selected" : ""}>Светлая</option>
-      </select>
-    </div>
+  // --- Кнопки управления ---
+  const actions = document.createElement("div");
+  actions.style.display = "flex";
+  actions.style.justifyContent = "space-between";
+  actions.style.marginTop = "auto";
+  actions.style.gap = "10px";
 
-    <div style="display:flex;justify-content:flex-end;margin-top:14px;gap:10px;">
-      <button id="saveSettings">💾 Сохранить</button>
-      <button id="closeSettings">✖ Закрыть</button>
-    </div>
-  `;
-
-  backdrop.appendChild(modal);
-  document.body.appendChild(backdrop);
-
-  modal.querySelector("#closeSettings").onclick = () => backdrop.remove();
-  modal.querySelector("#saveSettings").onclick = () => {
-    state.showLoadingScreen = modal.querySelector("#showLoadingScreen").checked;
-    state.showCurrentCrash = modal.querySelector("#showCurrentCrash").checked;
-    state.showPing = modal.querySelector("#showPing").checked;
-    state.showCpu = modal.querySelector("#showCpu").checked;
-    state.bgOpacity = parseFloat(modal.querySelector("#bgOpacity").value);
-    state.theme = modal.querySelector("#theme").value;
-    saveState(state);
-    backdrop.remove();
+  const resetBtn = document.createElement("button");
+  resetBtn.textContent = "Сброс";
+  resetBtn.style.cssText = baseBtnStyle + "background:#FF3B30;color:#fff;";
+  resetBtn.onclick = () => {
+    if (!confirm("Сбросить настройки к значениям по умолчанию? HUD перезагрузится.")) return;
+    localStorage.removeItem(LS_KEY);
     location.reload();
   };
+
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Закрыть";
+  closeBtn.style.cssText = baseBtnStyle + "background:#999;color:#fff;";
+  closeBtn.onclick = () => closeSettings();
+
+  const applyBtn = document.createElement("button");
+  applyBtn.textContent = "Применить";
+  applyBtn.style.cssText = baseBtnStyle + "background:#34C759;color:#fff;";
+  applyBtn.onclick = () => {
+    state = { ...state, ...tempState };
+    saveState(state);
+    location.reload();
+  };
+
+  actions.append(resetBtn, closeBtn, applyBtn);
+  settingsModal.appendChild(actions);
+
+  settingsBackdrop.appendChild(settingsModal);
+  document.body.appendChild(settingsBackdrop);
 }
 
 
