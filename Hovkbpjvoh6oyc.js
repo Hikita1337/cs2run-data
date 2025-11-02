@@ -1,3 +1,4 @@
+
 // ==UserScript==
 // @name         CS2Run HUD редизайн 
 // @namespace    cs2runR.hud
@@ -125,7 +126,7 @@
   // append
   document.body.appendChild(hud);
 
-  // --- Экран ожидания при первом запуске ---
+// --- Экран ожидания при первом запуске ---
 const loadingOverlay = document.createElement("div");
 loadingOverlay.id = "hud_loading_overlay";
 loadingOverlay.style.position = "absolute";
@@ -134,9 +135,9 @@ loadingOverlay.style.left = "0";
 loadingOverlay.style.right = "0";
 loadingOverlay.style.bottom = "0";
 loadingOverlay.style.background = "rgba(0,0,0,0.8)"; // плотный полупрозрачный фон
-loadingOverlay.style.backdropFilter = "blur(120px)"; // сильный блюр
+loadingOverlay.style.backdropFilter = "blur(120px)";
 loadingOverlay.style.webkitBackdropFilter = "blur(120px)";
-loadingOverlay.style.borderRadius = "0 0 10px 10px"; // совпадает с формой HUD без шапки
+loadingOverlay.style.borderRadius = "0 0 10px 10px";
 loadingOverlay.style.display = "flex";
 loadingOverlay.style.flexDirection = "column";
 loadingOverlay.style.alignItems = "center";
@@ -145,7 +146,7 @@ loadingOverlay.style.gap = "22px";
 loadingOverlay.style.zIndex = "1000002";
 loadingOverlay.style.transition = "opacity 0.6s ease";
 loadingOverlay.style.pointerEvents = "none"; // можно двигать HUD во время загрузки
-loadingOverlay.style.boxShadow = "inset 0 0 40px rgba(0,0,0,0.6)"; // мягкое внутреннее свечение
+loadingOverlay.style.boxShadow = "inset 0 0 40px rgba(0,0,0,0.6)";
 
 loadingOverlay.innerHTML = `
   <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
@@ -165,7 +166,7 @@ loadingOverlay.innerHTML = `
 
 hud.appendChild(loadingOverlay);
 
-// Плавное появление
+// Плавное появление оверлея
 loadingOverlay.style.opacity = "0";
 setTimeout(() => (loadingOverlay.style.opacity = "1"), 50);
 
@@ -178,12 +179,21 @@ const progressTimer = setInterval(() => {
   fill.style.width = loadProgress + "%";
 }, 400);
 
-// Функция скрытия оверлея
+// Функция скрытия экрана загрузки и возврата кнопки ⚙️
 function hideLoadingOverlay() {
   clearInterval(progressTimer);
   loadingOverlay.style.opacity = "0";
-  setTimeout(() => loadingOverlay.remove(), 600);
+  setTimeout(() => {
+    loadingOverlay.remove();
+    // возвращаем кнопку ⚙️
+    gear.style.opacity = "1";
+    gear.style.pointerEvents = "auto";
+  }, 600);
 }
+
+hud.appendChild(loadingOverlay);
+
+  
 
   // ------------------------------
   // Style & animations
@@ -266,6 +276,10 @@ titleEl.appendChild(crashVal);
   gear.title = "Настройки HUD";
   gear.style.cursor = "pointer";
   rightControls.appendChild(gear);
+
+// ⚙️ Прячем кнопку настроек во время загрузки
+gear.style.opacity = "0";
+gear.style.pointerEvents = "none";
 
   topRow.appendChild(rightControls);
   hud.appendChild(topRow);
@@ -375,11 +389,11 @@ topRow.style.margin = "0"; // убираем внешние отступы
 topRow.style.width = "100%"; // растягиваем на всю ширину HUD
 topRow.style.boxSizing = "border-box";
 
-// Нижняя панель (bottomRow)
-bottomRow.style.background = "rgba(255,255,255,0.75)"; // чуть темнее
-bottomRow.style.backdropFilter = "blur(100px)";
-bottomRow.style.webkitBackdropFilter = "blur(100px)";
-bottomRow.style.borderTop = "1px solid rgba(255,255,255,0.12)";
+// Нижняя панель (bottomRow) — стиль как у верхней
+bottomRow.style.background = "rgba(255,255,255,0.08)";
+bottomRow.style.backdropFilter = "blur(10px)";
+bottomRow.style.webkitBackdropFilter = "blur(10px)";
+bottomRow.style.borderTop = "1px solid rgba(255,255,255,0.15)";
 bottomRow.style.padding = "6px 10px";
 bottomRow.style.borderRadius = "0 0 10px 10px";
 bottomRow.style.margin = "0";
