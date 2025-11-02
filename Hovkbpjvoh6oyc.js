@@ -761,30 +761,38 @@ settingsModal.appendChild(rowOpacity);
   if (overlay && !state.showLoadingScreen) overlay.remove();
 
   // Мягкое уведомление "Настройки сохранены"
-  const toast = document.createElement("div");
-  toast.textContent = "✅ Настройки сохранены";
-  toast.style.position = "fixed";
-  toast.style.bottom = "20px";
-  toast.style.left = "50%";
-  toast.style.transform = "translateX(-50%)";
-  toast.style.background = "rgba(0,0,0,0.75)";
-  toast.style.color = "#fff";
-  toast.style.padding = "10px 18px";
-  toast.style.borderRadius = "8px";
-  toast.style.fontWeight = "600";
-  toast.style.fontSize = "14px";
-  toast.style.zIndex = "1000005";
-  toast.style.opacity = "0";
-  toast.style.transition = "opacity 0.4s ease";
-  document.body.appendChild(toast);
-  requestAnimationFrame(() => toast.style.opacity = "1");
-  setTimeout(() => {
-    toast.style.opacity = "0";
-    setTimeout(() => toast.remove(), 400);
-  }, 1800);
+const toast = document.createElement("div");
+toast.textContent = "✅ Настройки сохранены";
 
-  closeSettings();
-};
+// Добавляем в сам HUD, чтобы надпись позиционировалась относительно него
+hud.appendChild(toast);
+
+// Динамически центрируем надпись внутри HUD
+toast.style.position = "absolute";
+toast.style.top = "50%";
+toast.style.left = "50%";
+toast.style.transform = "translate(-50%, -50%)";
+toast.style.background = "rgba(0,0,0,0.75)";
+toast.style.color = "#fff";
+toast.style.padding = "10px 18px";
+toast.style.borderRadius = "8px";
+toast.style.fontWeight = "600";
+toast.style.fontSize = "14px";
+toast.style.zIndex = "1000005";
+toast.style.opacity = "0";
+toast.style.transition = "opacity 0.4s ease";
+toast.style.pointerEvents = "none";
+toast.style.textAlign = "center";
+toast.style.backdropFilter = "blur(6px)";
+toast.style.webkitBackdropFilter = "blur(6px)";
+toast.style.maxWidth = "90%";
+
+// Анимация появления и исчезновения
+requestAnimationFrame(() => toast.style.opacity = "1");
+setTimeout(() => {
+  toast.style.opacity = "0";
+  setTimeout(() => toast.remove(), 400);
+}, 1800);
 
   actions.append(resetBtn, closeBtn, applyBtn);
   settingsModal.appendChild(actions);
