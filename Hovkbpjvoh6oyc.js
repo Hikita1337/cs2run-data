@@ -149,10 +149,48 @@ style.textContent = `
   .ios-toggle:checked::before {
     transform: translateX(18px);
   }
+/* --- поля ввода и выбора --- */
+.cs-settings select, 
+.cs-settings input[type="number"] {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 6px;
+  padding: 2px 6px;
+  color: inherit;
+  font-size: 13px;
+  height: 24px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+/* Тёмная тема — мягкая рамка */
+.cs-settings.dark select, 
+.cs-settings.dark input[type="number"] {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Светлая тема — чёткая рамка */
+.cs-settings:not(.dark) select, 
+.cs-settings:not(.dark) input[type="number"] {
+  background: rgba(255,255,255,0.9);
+  border: 1px solid rgba(0,0,0,0.15);
+  color: #111;
+}
+
+/* При фокусе (нажатии) — подсветка */
+.cs-settings select:focus, 
+.cs-settings input[type="number"]:focus {
+  outline: none;
+  border-color: #007AFF;
+}
+
 
   @media (max-width: 600px) {
     .cs-settings { width: 86vw; height: 60vh; }
     hud { width: 92vw !important; left: 4vw !important; }
+    
+  
+    
   }
 `;
 document.head.appendChild(style);
@@ -649,7 +687,7 @@ function openSettings() {
   header.innerHTML = `<div style="font-weight:700">Настройки HUD</div><div style="font-size:12px;color:#888">v2.0</div>`;
   settingsModal.appendChild(header);
 
-  // --- Тема ---
+// --- Тема ---
 const rowTheme = document.createElement("div");
 rowTheme.className = "cs-row";
 
@@ -657,17 +695,42 @@ const labelTheme = document.createElement("label");
 labelTheme.textContent = "Тема";
 
 const selTheme = document.createElement("select");
-selTheme.style.width = "110px"; // фиксированная ширина
-selTheme.style.marginLeft = "8px";
-selTheme.style.background = "rgba(255,255,255,0.08)";
-selTheme.style.color = "inherit";
-selTheme.style.border = "1px solid rgba(255,255,255,0.12)";
-selTheme.style.borderRadius = "6px";
-selTheme.style.padding = "2px 6px";
-selTheme.style.fontSize = "13px";
-selTheme.style.height = "24px";
-selTheme.style.cursor = "pointer";
 
+// Унифицированный стиль выбора темы (такой же, как у выбора "Обычный / Кастомный")
+Object.assign(selTheme.style, {
+  width: "110px",
+  marginLeft: "8px",
+  borderRadius: "6px",
+  padding: "2px 6px",
+  fontSize: "13px",
+  height: "26px",
+  cursor: "pointer",
+  appearance: "none",
+  transition: "border-color 0.2s ease, background 0.2s ease, color 0.2s ease",
+  background: state.theme === "dark"
+    ? "rgba(255,255,255,0.08)"
+    : "rgba(255,255,255,0.9)",
+  color: state.theme === "dark" ? "#fff" : "#111",
+  border: state.theme === "dark"
+    ? "1px solid rgba(255,255,255,0.15)"
+    : "1px solid rgba(0,0,0,0.25)",
+  boxShadow: state.theme === "light"
+    ? "0 1px 2px rgba(0,0,0,0.1)"
+    : "inset 0 0 0 1px rgba(255,255,255,0.08)",
+  WebkitTextFillColor: state.theme === "dark" ? "#fff" : "#111", // 👈 важно для Safari
+});
+
+// hover эффект — лёгкое выделение рамки
+selTheme.onmouseenter = () => {
+  selTheme.style.borderColor = "#007AFF";
+};
+selTheme.onmouseleave = () => {
+  selTheme.style.borderColor = state.theme === "dark"
+    ? "rgba(255,255,255,0.15)"
+    : "rgba(0,0,0,0.25)";
+};
+
+// варианты выбора
 ["auto", "light", "dark"].forEach(t => {
   const opt = document.createElement("option");
   opt.value = t;
@@ -679,7 +742,29 @@ selTheme.style.cursor = "pointer";
   selTheme.appendChild(opt);
 });
 
-selTheme.onchange = () => (tempState.theme = selTheme.value);
+// 🔥 Мгновенное применение темы при выборе
+selTheme.onchange = () => {
+  tempState.theme = selTheme.value;
+  applyThemeToElement(hud, selTheme.value); // сразу перекрашивает HUD
+
+  // Обновляем тему окна настроек сразу (без "Применить")
+  if (selTheme.value === "dark") {
+    settingsModal.classList.add("dark");
+    settingsModal.style.background = "rgba(28,28,30,0.98)";
+    settingsModal.style.color = "#EEE";
+  } else if (selTheme.value === "light") {
+    settingsModal.classList.remove("dark");
+    settingsModal.style.background = "rgba(255,255,255,0.95)";
+    settingsModal.style.color = "#1C1C1E";
+  } else {
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    settingsModal.classList.toggle("dark", prefersDark);
+    settingsModal.style.background = prefersDark
+      ? "rgba(28,28,30,0.98)"
+      : "rgba(255,255,255,0.95)";
+    settingsModal.style.color = prefersDark ? "#EEE" : "#1C1C1E";
+  }
+};
 
 rowTheme.append(labelTheme, selTheme);
 settingsModal.appendChild(rowTheme);
@@ -740,7 +825,7 @@ toggleAutoRaffle.onchange = () => tempState.autoRaffle = toggleAutoRaffle.checke
 rowAutoRaffle.append(labelAutoRaffle, toggleAutoRaffle);
 settingsModal.appendChild(rowAutoRaffle);
 
-// режим (обычный / кастом)
+// --- Режим автоучастия ---
 const rowRaffleMode = document.createElement("div");
 rowRaffleMode.className = "cs-row";
 const labelRaffleMode = document.createElement("label");
@@ -750,6 +835,7 @@ const selectRaffleMode = document.createElement("select");
 selectRaffleMode.style.width = "110px";
 selectRaffleMode.style.padding = "2px 6px";
 selectRaffleMode.style.borderRadius = "6px";
+
 ["normal", "custom"].forEach(v => {
   const opt = document.createElement("option");
   opt.value = v;
@@ -757,11 +843,14 @@ selectRaffleMode.style.borderRadius = "6px";
   if (tempState.raffleMode === v) opt.selected = true;
   selectRaffleMode.appendChild(opt);
 });
-selectRaffleMode.onchange = () => tempState.raffleMode = selectRaffleMode.value;
+selectRaffleMode.onchange = () => {
+  tempState.raffleMode = selectRaffleMode.value;
+  updateCustomFieldsVisibility();
+};
 rowRaffleMode.append(labelRaffleMode, selectRaffleMode);
 settingsModal.appendChild(rowRaffleMode);
 
-// интервалы для кастомного режима
+// --- Интервал (для кастомного режима) ---
 const rowCustomInterval = document.createElement("div");
 rowCustomInterval.className = "cs-row";
 const labelCustomInterval = document.createElement("label");
@@ -776,6 +865,7 @@ inputCustomInterval.oninput = () => tempState.customInterval = Number(inputCusto
 rowCustomInterval.append(labelCustomInterval, inputCustomInterval);
 settingsModal.appendChild(rowCustomInterval);
 
+// --- Разброс ± (для кастомного режима) ---
 const rowCustomOffset = document.createElement("div");
 rowCustomOffset.className = "cs-row";
 const labelCustomOffset = document.createElement("label");
@@ -790,6 +880,7 @@ inputCustomOffset.oninput = () => tempState.customOffset = Number(inputCustomOff
 rowCustomOffset.append(labelCustomOffset, inputCustomOffset);
 settingsModal.appendChild(rowCustomOffset);
 
+// --- Подсказка ---
 const noteAutoRaffle = document.createElement("div");
 noteAutoRaffle.textContent = "Обычный режим — раз в 30 мин ± 1 мин.";
 noteAutoRaffle.style.fontSize = "11.5px";
@@ -797,6 +888,13 @@ noteAutoRaffle.style.opacity = "0.8";
 noteAutoRaffle.style.margin = "-6px 0 6px 2px";
 settingsModal.appendChild(noteAutoRaffle);
 
+// --- Управление видимостью полей ---
+function updateCustomFieldsVisibility() {
+  const isCustom = selectRaffleMode.value === "custom";
+  rowCustomInterval.style.display = isCustom ? "flex" : "none";
+  rowCustomOffset.style.display = isCustom ? "flex" : "none";
+}
+updateCustomFieldsVisibility(); // применяем при открытии настроек
 
   // --- Кнопки управления ---
   const actions = document.createElement("div");
