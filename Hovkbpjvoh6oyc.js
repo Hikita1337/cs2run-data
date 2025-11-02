@@ -188,6 +188,11 @@ function hideLoadingOverlay() {
     // возвращаем кнопку ⚙️
     gear.style.opacity = "1";
     gear.style.pointerEvents = "auto";
+    // 🔸 плавно показываем resize-кнопку
+    setTimeout(() => {
+      resizeHandle.style.pointerEvents = "auto";
+      resizeHandle.style.opacity = "0.8";
+    }, 150);
   }, 600);
 }
 
@@ -340,6 +345,10 @@ bottomRow.style.transition = "all 0.3s ease";
 
 function updateBottomLayout() {
   const hasPerf = state.showPing || state.showCpu;
+
+  // всегда оставляем немного места справа под кнопку ↘️
+  updatedEl.style.paddingRight = "22px";
+  updatedEl.style.boxSizing = "border-box";
 
   if (!hasPerf) {
     // скрываем блок с пингом и CPU, двигаем "Обновлено" влево
@@ -825,20 +834,22 @@ settingsModal.appendChild(actions);
   document.addEventListener("mouseup", stopDrag);
   document.addEventListener("touchend", stopDrag);
 
-  // Resize handle (use the resizeBtn created earlier)
-  const resizeHandle = document.createElement("div");
-  resizeHandle.textContent = "↘️";
-  resizeHandle.style.position = "absolute";
-resizeHandle.style.right = "6px";
-resizeHandle.style.bottom = "22px"; // ⬆️ подняли кнопку над нижней панелью
+  // --- Кнопка масштабирования (resize) ---
+const resizeHandle = document.createElement("div");
+resizeHandle.textContent = "↘️";
+resizeHandle.style.position = "absolute";
+resizeHandle.style.right = "4.5px";
+resizeHandle.style.bottom = "4.5px";
 resizeHandle.style.cursor = "nwse-resize";
 resizeHandle.style.fontSize = "10.5px";
 resizeHandle.style.background = "rgba(255,255,255,0.1)";
 resizeHandle.style.borderRadius = "4px";
 resizeHandle.style.padding = "1px 4px";
-resizeHandle.style.opacity = "0.8";
+resizeHandle.style.opacity = "0"; // 🔸 спрятана при запуске
 resizeHandle.style.userSelect = "none";
-resizeHandle.style.zIndex = "1000003"; // ✅ добавь вот эту строку
+resizeHandle.style.transition = "opacity 0.3s ease"; // 🔸 плавность появления
+resizeHandle.style.zIndex = "1000003";
+resizeHandle.style.pointerEvents = "none"; // 🔸 заблокировано до загрузки
 hud.appendChild(resizeHandle);
 
   const startResize = (e) => {
