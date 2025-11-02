@@ -130,9 +130,9 @@ const loadingOverlay = document.createElement("div");
 loadingOverlay.id = "hud_loading_overlay";
 loadingOverlay.style.position = "absolute";
 loadingOverlay.style.inset = "0";
-loadingOverlay.style.background = "rgba(0,0,0,0.55)";
-loadingOverlay.style.backdropFilter = "blur(20px)";
-loadingOverlay.style.webkitBackdropFilter = "blur(20px)";
+loadingOverlay.style.background = "rgba(0,0,0,0.6)";
+loadingOverlay.style.backdropFilter = "blur(60px)";
+loadingOverlay.style.webkitBackdropFilter = "blur(60px)";
 loadingOverlay.style.borderRadius = "10px";
 loadingOverlay.style.display = "flex";
 loadingOverlay.style.flexDirection = "column";
@@ -695,7 +695,7 @@ const baseBtnStyle = `
 `;
 
 const resetBtn = document.createElement("button");
-resetBtn.textContent = "Сброс настроек";
+resetBtn.textContent = "Сброс";
 resetBtn.style.cssText = baseBtnStyle + "background:#FF3B30;color:#fff;";
 resetBtn.onmouseover = () => resetBtn.style.filter = "brightness(1.15)";
 resetBtn.onmouseout = () => resetBtn.style.filter = "";
