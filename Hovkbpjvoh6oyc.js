@@ -794,12 +794,12 @@ setTimeout(() => {
   setTimeout(() => toast.remove(), 400);
 }, 1800);
 
-  actions.append(resetBtn, closeBtn, applyBtn);
-  settingsModal.appendChild(actions);
+actions.append(resetBtn, closeBtn, applyBtn);
+settingsModal.appendChild(actions);
 
-  settingsBackdrop.appendChild(settingsModal);
-  document.body.appendChild(settingsBackdrop);
+settingsBackdrop.appendChild(settingsModal);
+document.body.appendChild(settingsBackdrop);
+closeSettings();
 }
-
 
 })();
