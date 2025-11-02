@@ -695,7 +695,7 @@ sliderOpacity.min = "0.05";
 sliderOpacity.max = "1";
 sliderOpacity.step = "0.05";
 sliderOpacity.value = tempState.bgOpacity ?? 0.15;
-sliderOpacity.style.width = "75%"; // ← уменьшено на 20% (было 100%)
+sliderOpacity.style.width = "45%"; // ← уменьшено на 20% (было 100%)
 sliderOpacity.oninput = () => {
   tempState.bgOpacity = parseFloat(sliderOpacity.value);
   applyThemeToElement(hud, tempState.theme);
