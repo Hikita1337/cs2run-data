@@ -620,19 +620,22 @@ function openSettings() {
   // --- Тема ---
 const rowTheme = document.createElement("div");
 rowTheme.className = "cs-row";
+
 const labelTheme = document.createElement("label");
 labelTheme.textContent = "Тема";
 
-const themeIndicator = document.createElement("span");
-themeIndicator.style.fontWeight = "600";
-themeIndicator.style.fontSize = "13px";
-themeIndicator.style.opacity = "0.8";
-themeIndicator.textContent =
-  tempState.theme === "auto" ? "Авто" :
-  tempState.theme === "light" ? "Светлая" :
-  "Тёмная";
-
 const selTheme = document.createElement("select");
+selTheme.style.width = "110px"; // фиксированная ширина
+selTheme.style.marginLeft = "8px";
+selTheme.style.background = "rgba(255,255,255,0.08)";
+selTheme.style.color = "inherit";
+selTheme.style.border = "1px solid rgba(255,255,255,0.12)";
+selTheme.style.borderRadius = "6px";
+selTheme.style.padding = "2px 6px";
+selTheme.style.fontSize = "13px";
+selTheme.style.height = "24px";
+selTheme.style.cursor = "pointer";
+
 ["auto", "light", "dark"].forEach(t => {
   const opt = document.createElement("option");
   opt.value = t;
@@ -643,16 +646,13 @@ const selTheme = document.createElement("select");
   if (tempState.theme === t) opt.selected = true;
   selTheme.appendChild(opt);
 });
-selTheme.onchange = () => {
-  tempState.theme = selTheme.value;
-  themeIndicator.textContent =
-    selTheme.value === "auto" ? "Авто" :
-    selTheme.value === "light" ? "Светлая" :
-    "Тёмная";
-};
 
-rowTheme.append(labelTheme, themeIndicator);
+selTheme.onchange = () => (tempState.theme = selTheme.value);
+
+rowTheme.append(labelTheme, selTheme);
 settingsModal.appendChild(rowTheme);
+
+
   // --- Новый переключатель: Экран загрузки ---
   const rowLoading = document.createElement("div");
   rowLoading.className = "cs-row";
