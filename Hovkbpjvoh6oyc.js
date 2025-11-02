@@ -125,15 +125,18 @@
   // append
   document.body.appendChild(hud);
 
-  // --- Экран ожидания при первом запуске (плотный блюр, полностью скрывает HUD) ---
+  // --- Экран ожидания при первом запуске ---
 const loadingOverlay = document.createElement("div");
 loadingOverlay.id = "hud_loading_overlay";
 loadingOverlay.style.position = "absolute";
-loadingOverlay.style.inset = "0";
-loadingOverlay.style.background = "rgba(0,0,0,0.6)";
-loadingOverlay.style.backdropFilter = "blur(60px)";
-loadingOverlay.style.webkitBackdropFilter = "blur(60px)";
-loadingOverlay.style.borderRadius = "10px";
+loadingOverlay.style.top = "36px"; // верхний отступ, чтобы шапка HUD осталась видимой
+loadingOverlay.style.left = "0";
+loadingOverlay.style.right = "0";
+loadingOverlay.style.bottom = "0";
+loadingOverlay.style.background = "rgba(0,0,0,0.8)"; // плотный полупрозрачный фон
+loadingOverlay.style.backdropFilter = "blur(120px)"; // сильный блюр
+loadingOverlay.style.webkitBackdropFilter = "blur(120px)";
+loadingOverlay.style.borderRadius = "0 0 10px 10px"; // совпадает с формой HUD без шапки
 loadingOverlay.style.display = "flex";
 loadingOverlay.style.flexDirection = "column";
 loadingOverlay.style.alignItems = "center";
@@ -141,18 +144,19 @@ loadingOverlay.style.justifyContent = "center";
 loadingOverlay.style.gap = "22px";
 loadingOverlay.style.zIndex = "1000002";
 loadingOverlay.style.transition = "opacity 0.6s ease";
-loadingOverlay.style.pointerEvents = "none"; // позволяет перетаскивать HUD, даже во время загрузки
+loadingOverlay.style.pointerEvents = "none"; // можно двигать HUD во время загрузки
+loadingOverlay.style.boxShadow = "inset 0 0 40px rgba(0,0,0,0.6)"; // мягкое внутреннее свечение
 
 loadingOverlay.innerHTML = `
   <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-    <img src="https://cs2run.bet/img/crash/begun-v-1.gif" 
+    <img src="https://cs2run.bet/img/crash/begun-v-1.gif"
          style="width:130px;height:auto;filter:drop-shadow(0 0 10px rgba(0,0,0,0.4));">
     <div style="font-size:17px;color:white;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.6);">
       Ждём завершения игры…
     </div>
     <div style="width:260px;height:10px;background:rgba(255,255,255,0.25);
                 border-radius:8px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,0.3);">
-      <div id="hud_loading_fill" 
+      <div id="hud_loading_fill"
            style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);
                   transition:width 0.3s linear;"></div>
     </div>
@@ -161,16 +165,20 @@ loadingOverlay.innerHTML = `
 
 hud.appendChild(loadingOverlay);
 
-// Анимация заполнения прогресс-бара
+// Плавное появление
+loadingOverlay.style.opacity = "0";
+setTimeout(() => (loadingOverlay.style.opacity = "1"), 50);
+
+// Анимация прогресса
 let loadProgress = 0;
 const fill = loadingOverlay.querySelector("#hud_loading_fill");
 const progressTimer = setInterval(() => {
-  loadProgress += Math.random() * 4; // случайное ускорение
+  loadProgress += Math.random() * 4;
   if (loadProgress > 95) loadProgress = 95;
   fill.style.width = loadProgress + "%";
 }, 400);
 
-// Функция скрытия оверлея после получения данных
+// Функция скрытия оверлея
 function hideLoadingOverlay() {
   clearInterval(progressTimer);
   loadingOverlay.style.opacity = "0";
@@ -212,16 +220,7 @@ function hideLoadingOverlay() {
       border-radius:8px; background: rgba(0,0,0,0.6); color: #fff; cursor:pointer;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    .cs-progress-overlay {
-      position:absolute; inset:0; display:flex;align-items:center;justify-content:center;
-      background: rgba(0,0,0,0.15); z-index: 20; flex-direction:column; gap:8px;
-    }
-    .cs-progress-bar {
-      width: 80%; height: 8px; background: rgba(255,255,255,0.25); border-radius: 6px; overflow:hidden;
-    }
-    .cs-progress-fill {
-      height:100%; width:0%; background: linear-gradient(90deg,#34c759,#ffd60a); transition: width 0.3s linear;
-    }
+  
     @media (max-width: 600px) {
       .cs-settings { width: 86vw; height: 60vh; }
       hud { width: 92vw !important; left: 4vw !important; }
@@ -377,9 +376,9 @@ topRow.style.width = "100%"; // растягиваем на всю ширину 
 topRow.style.boxSizing = "border-box";
 
 // Нижняя панель (bottomRow)
-bottomRow.style.background = "rgba(255,255,255,0.06)"; // чуть темнее
-bottomRow.style.backdropFilter = "blur(10px)";
-bottomRow.style.webkitBackdropFilter = "blur(10px)";
+bottomRow.style.background = "rgba(255,255,255,0.75)"; // чуть темнее
+bottomRow.style.backdropFilter = "blur(100px)";
+bottomRow.style.webkitBackdropFilter = "blur(100px)";
 bottomRow.style.borderTop = "1px solid rgba(255,255,255,0.12)";
 bottomRow.style.padding = "6px 10px";
 bottomRow.style.borderRadius = "0 0 10px 10px";
@@ -389,17 +388,6 @@ bottomRow.style.boxSizing = "border-box";
 
 // убираем общий внутренний отступ HUD, чтобы панели легли заподлицо
 hud.style.padding = "0";
-
-  // progress overlay (hidden by default)
-  const progressOverlay = document.createElement("div");
-  progressOverlay.className = "cs-progress-overlay";
-  progressOverlay.style.display = "none";
-  progressOverlay.innerHTML = `<div style="font-weight:700">Ожидание конца игры...</div>
-                               <div class="cs-progress-bar"><div class="cs-progress-fill"></div></div>
-                               <div id="cs_progress_text" style="font-size:12px;color:rgba(255,255,255,0.95)"></div>`;
-  hud.appendChild(progressOverlay);
-
-  
 
   // ------------------------------
   // Functions to render incoming data
@@ -481,38 +469,7 @@ document.getElementById("cs_max24h").textContent = formatVal(lastPayload.max24h)
     }
   }
 
-  // ------------------------------
-  // Progress overlay controls
-  // ------------------------------
-  let progressInterval = null;
-  function showProgressOverlay() {
-    progressOverlay.style.display = "flex";
-    const fill = progressOverlay.querySelector(".cs-progress-fill");
-    fill.style.width = "0%";
-    // animate like a live progress (loop)
-    let pct = 0;
-    clearInterval(progressInterval);
-    progressInterval = setInterval(() => {
-      pct += 6 + Math.random() * 8;
-      if (pct > 98) pct = 98;
-      fill.style.width = pct + "%";
-      const txt = progressOverlay.querySelector("#cs_progress_text");
-      txt.textContent = `Ожидание ответа... ${Math.round(pct)}%`;
-    }, 420);
-  }
-  function hideProgressOverlayThenShowReceived() {
-    // on receive: show "получен ответ от сервера" for 1s then hide overlay
-    clearInterval(progressInterval);
-    const fill = progressOverlay.querySelector(".cs-progress-fill");
-    fill.style.width = "100%";
-    const txt = progressOverlay.querySelector("#cs_progress_text");
-    txt.textContent = "Получен ответ от сервера";
-    setTimeout(() => {
-      progressOverlay.style.display = "none";
-      fill.style.width = "0%";
-      txt.textContent = "";
-    }, 1000);
-  }
+
 
   // ------------------------------
   // Settings modal
@@ -951,17 +908,12 @@ function showRestoreButton() {
   // ------------------------------
   channel.subscribe("update", (msg) => {
     const data = msg.data || {};
-    // when new payload arrives, hide progress overlay after showing 'received' message
-    hideProgressOverlayThenShowReceived();
+ 
     // render
     renderPayload(data);
     if (document.getElementById("hud_loading_overlay")) hideLoadingOverlay();
 });
   
-
-  // external API for parser to show progress: parser can publish 'waiting' on channel or you can call showProgressOverlay()
-  // We'll also expose a simple global toggler so parser or other code can call window.__cs2run_showWait()
-  window.__cs2run_showWait = () => { showProgressOverlay(); };
 
   // initial render with saved last data (if any)
   try {
@@ -979,10 +931,6 @@ function showRestoreButton() {
   hud.style.display = "none";
   showRestoreButton();
 }
-
-  // --- convenience: when opening HUD, show overlay waiting for 1s to simulate waiting (optional) ---
-  showProgressOverlay(); // show immediately (user asked overlay at open)
-  setTimeout(() => { progressOverlay.style.display = "none"; }, 800);
 
   // ------------------------------
   // Small helpers for parser integration:
