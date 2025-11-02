@@ -445,10 +445,20 @@ document.head.appendChild(style);
     const loadingOverlay = document.createElement("div");
     loadingOverlay.id = "hud_loading_overlay";
     loadingOverlay.style.position = "absolute";
-    loadingOverlay.style.top = "36px";
-    loadingOverlay.style.left = "0";
-    loadingOverlay.style.right = "0";
-    loadingOverlay.style.bottom = "0";
+loadingOverlay.style.top = "0";
+loadingOverlay.style.left = "0";
+loadingOverlay.style.width = "100%";
+loadingOverlay.style.height = "100%";
+loadingOverlay.style.display = "flex";
+loadingOverlay.style.flexDirection = "column";
+loadingOverlay.style.alignItems = "center";
+loadingOverlay.style.justifyContent = "center";
+loadingOverlay.style.backdropFilter = "blur(80px)";
+loadingOverlay.style.webkitBackdropFilter = "blur(80px)";
+loadingOverlay.style.background = "rgba(0,0,0,0.8)";
+loadingOverlay.style.borderRadius = "10px";
+loadingOverlay.style.transition = "opacity 0.6s ease";
+loadingOverlay.style.zIndex = "1000002";
     loadingOverlay.style.background = "rgba(0,0,0,0.8)";
     loadingOverlay.style.backdropFilter = "blur(120px)";
     loadingOverlay.style.webkitBackdropFilter = "blur(120px)";
@@ -463,15 +473,36 @@ document.head.appendChild(style);
     loadingOverlay.style.pointerEvents = "none";
     loadingOverlay.style.boxShadow = "inset 0 0 40px rgba(0,0,0,0.6)";
     loadingOverlay.innerHTML = `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;">
-        <img src="https://cs2run.bet/img/crash/begun-v-1.gif"
-             style="width:130px;height:auto;filter:drop-shadow(0 0 10px rgba(0,0,0,0.4));">
-        <div style="font-size:17px;color:white;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.6);">Ждём завершения игры…</div>
-        <div style="width:260px;height:10px;background:rgba(255,255,255,0.25);border-radius:8px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,0.3);">
-          <div id="hud_loading_fill" style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);transition:width 0.3s linear;"></div>
-        </div>
-      </div>
-    `;
+  <div id="hud_loading_inner"
+       style="display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;height:100%;justify-content:center;transform-origin:center;">
+    <img src="https://cs2run.bet/img/crash/begun-v-1.gif"
+         id="hud_loading_gif"
+         style="width:130px;height:auto;filter:drop-shadow(0 0 10px rgba(0,0,0,0.4));transition:transform 0.2s ease;">
+    <div id="hud_loading_text"
+         style="font-size:17px;color:white;font-weight:600;text-shadow:0 1px 6px rgba(0,0,0,0.6);transition:transform 0.2s ease;">Ждём завершения игры…</div>
+    <div id="hud_loading_bar_container"
+         style="width:260px;height:10px;background:rgba(255,255,255,0.25);border-radius:8px;overflow:hidden;box-shadow:inset 0 0 6px rgba(0,0,0,0.3);transition:transform 0.2s ease;">
+      <div id="hud_loading_fill"
+           style="height:100%;width:0%;background:linear-gradient(90deg,#34C759,#FFD60A);transition:width 0.3s linear;"></div>
+    </div>
+  </div>
+`;
+// Автоматическое масштабирование элементов загрузочного экрана
+const updateLoadingScale = () => {
+  const baseWidth = 360; // базовая ширина HUD по умолчанию
+  const currentWidth = hud.offsetWidth;
+  const scale = Math.max(0.6, Math.min(1.2, currentWidth / baseWidth)); // ограничиваем масштаб 0.6–1.2
+
+  const inner = loadingOverlay.querySelector("#hud_loading_inner");
+  if (inner) inner.style.transform = `scale(${scale})`;
+};
+
+// следим за изменением размеров HUD
+const resizeObserver = new ResizeObserver(() => updateLoadingScale());
+resizeObserver.observe(hud);
+
+// применяем при первом показе
+updateLoadingScale();
     hud.appendChild(loadingOverlay);
     loadingOverlay.style.opacity = "0";
     setTimeout(() => (loadingOverlay.style.opacity = "1"), 50);
@@ -660,7 +691,7 @@ labelOpacity.textContent = "Прозрачность HUD";
 
 const sliderOpacity = document.createElement("input");
 sliderOpacity.type = "range";
-sliderOpacity.min = "0.5";
+sliderOpacity.min = "0.05";
 sliderOpacity.max = "1";
 sliderOpacity.step = "0.05";
 sliderOpacity.value = tempState.bgOpacity ?? 0.15;
