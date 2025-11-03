@@ -1046,6 +1046,16 @@ raffleTimerEl.style.borderTop = "1px solid rgba(255,255,255,0.08)";
 raffleTimerEl.style.userSelect = "none";
 raffleTimerEl.textContent = "";
 hud.insertBefore(raffleTimerEl, bottomRow);
+// 🎟 Элемент для отображения номера билета
+const ticketInfoEl = document.createElement("div");
+ticketInfoEl.id = "cs_ticket_info";
+ticketInfoEl.style.textAlign = "center";
+ticketInfoEl.style.fontSize = "13px";
+ticketInfoEl.style.opacity = "0.9";
+ticketInfoEl.style.padding = "4px 8px";
+ticketInfoEl.style.userSelect = "none";
+ticketInfoEl.textContent = ""; // по умолчанию пусто
+hud.insertBefore(ticketInfoEl, bottomRow);
 
 // вспомогательная функция форматирования
 function fmtCountdown(ms) {
@@ -1058,6 +1068,13 @@ function fmtCountdown(ms) {
 
 // обновление таймера каждую секунду
 function updateRaffleTimerDisplay() {
+  // если автоучастие выключено — не показываем ничего
+  if (!state.autoRaffle) {
+    raffleTimerEl.textContent = "";
+    ticketInfoEl.textContent = "";
+    return;
+  }
+
   const saved = Number(localStorage.getItem(STORAGE_NEXT_JOIN)) || nextJoinAt;
   if (!saved || saved <= Date.now()) {
     raffleTimerEl.textContent = "";
@@ -1067,8 +1084,6 @@ function updateRaffleTimerDisplay() {
   const rem = saved - Date.now();
   const modeText = (state.raffleMode === "custom") ? "Кастомный" : "Обычный";
   const nextDate = new Date(saved);
-
-  // 🕓 Форматируем время (часы:минуты:секунды)
   const timeStr = nextDate.toLocaleTimeString("ru-RU", {
     hour12: false,
     hour: "2-digit",
@@ -1077,6 +1092,14 @@ function updateRaffleTimerDisplay() {
   });
 
   raffleTimerEl.textContent = `🎯 ${modeText}: участие через ${fmtCountdown(rem)} (в ${timeStr})`;
+
+  // 🎟 показываем билет, если он сохранён
+  const ticketNum = localStorage.getItem("cs2run_ticket_number");
+  if (ticketNum) {
+    ticketInfoEl.textContent = `🎟 Ваш билет в розыгрыше: #${ticketNum}`;
+  } else {
+    ticketInfoEl.textContent = "";
+  }
 }
 
 setInterval(updateRaffleTimerDisplay, 1000);
@@ -1152,14 +1175,26 @@ return {
         credentials: "include"
       });
 
-      const text = await res.text();
       if (res.ok) {
-        console.log(`✅ Участие в розыгрыше #${lotteryId} принято`);
-        showToast("🎁 Участие в розыгрыше принято!");
-        localStorage.removeItem(STORAGE_NEXT_JOIN);
-        nextJoinAt = null;
-        return true;
-      } else {
+  const json = JSON.parse(text || "{}");
+  console.log(`✅ Участие в розыгрыше #${lotteryId} принято`, json);
+
+    // 🎟 сохраняем и показываем номер билета
+  const ticketNum = json?.ticket?.number || json?.ticketNumber || json?.number || null;
+  if (ticketNum) {
+    localStorage.setItem("cs2run_ticket_number", ticketNum);
+    ticketInfoEl.textContent = `🎟 Ваш билет в розыгрыше: #${ticketNum}`;
+  } else {
+    localStorage.removeItem("cs2run_ticket_number");
+    ticketInfoEl.textContent = `🎟 Участие принято (номер билета уточняется)`;
+  }
+
+  showToast("🎁 Участие в розыгрыше принято!");
+  localStorage.removeItem(STORAGE_NEXT_JOIN);
+  nextJoinAt = null;
+  return true;
+}
+       else {
         console.warn(`❌ Ошибка участия: ${text}`);
       }
     } catch (err) {
@@ -1178,6 +1213,13 @@ return {
 
   // 🔹 3. Главный цикл
   async function handleRaffleLoop() {
+      // 🧹 Если розыгрыш завершён — сбрасываем билет
+  const active = await fetchCurrentRaffle();
+  if (!active) {
+    console.log("🏁 Розыгрыш завершён — сбрасываем билет");
+    localStorage.removeItem("cs2run_ticket_number");
+    ticketInfoEl.textContent = "";
+  }
     const raffle = await fetchCurrentRaffle();
     if (!raffle) {
       console.log("⏳ Нет активного розыгрыша, проверим через 1 мин...");
