@@ -1115,7 +1115,8 @@ if (state.autoRaffle) {
       return;
     }
 
-    const { startAt, finishAt, lotteryId } = raffle;
+    const { startAt, finishAt } = raffle;
+const lotteryId = 169; // 🔒 фиксированный ID розыгрыша
     const start = new Date(startAt).getTime();
     const end = new Date(finishAt).getTime();
     const now = Date.now();
