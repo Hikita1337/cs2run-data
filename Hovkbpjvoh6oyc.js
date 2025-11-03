@@ -1060,37 +1060,61 @@ if (state.autoRaffle) {
     }
   }
 
+    // =============================
+  // 🧩 Обновлённая функция joinRaffle с JWT токеном
+  // =============================
+  function getJwtToken() {
+    // попробуем достать токен из localStorage, где он обычно лежит
+    const token =
+      localStorage.getItem("jwt") ||
+      localStorage.getItem("auth-token") ||
+      localStorage.getItem("token") ||
+      "";
+    return token;
+  }
+
   async function joinRaffle(lotteryId, attempt = 1) {
+    const token = getJwtToken();
+    if (!token) {
+      console.warn("⚠️ JWT токен не найден. Авторизуйся на сайте, потом перезапусти HUD.");
+      return false;
+    }
+
     try {
-      const res = await fetch("https://cs2run.bet/lottery/join", {
+      const res = await fetch("https://cs2run.app/lottery/join", {
         method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json, text/plain, */*",
+          "Authorization": "JWT " + token
+        },
         body: JSON.stringify({ lotteryId })
       });
 
+      const text = await res.text();
       if (res.ok) {
-        console.log(`✅ Участие #${lotteryId} принято (попытка ${attempt})`);
-        showToast("✅ Участие в розыгрыше принято!");
+        console.log(`✅ Участие #${lotteryId} принято`);
+        showToast("🎁 Участие в розыгрыше принято!");
         localStorage.removeItem(STORAGE_NEXT_JOIN);
         nextJoinAt = null;
         return true;
       } else {
-        const txt = await res.text();
-        console.warn(`❌ Попытка ${attempt} не удалась: ${txt}`);
+        console.warn(`❌ Ошибка: ${text}`);
       }
     } catch (err) {
-      console.error(`⚠️ Ошибка при попытке ${attempt}:`, err);
+      console.error(`⚠️ Ошибка запроса (попытка ${attempt}):`, err);
     }
 
-    if (attempt < 5) {
-      console.log(`🔁 Повтор через 60 секунд (попытка ${attempt + 1}/5)...`);
+    if (attempt < 3) {
+      console.log(`🔁 Повторная попытка через 60 сек (${attempt + 1}/3)`);
       setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
     } else {
-      console.warn("🚫 Лимит повторов исчерпан");
+      console.warn("🚫 Лимит попыток исчерпан");
     }
     return false;
   }
+
+      
 
   function showToast(text) {
     const toast = document.createElement("div");
