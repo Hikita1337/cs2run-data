@@ -5,8 +5,7 @@
 // @description  HUD + автоучастие в розыгрыше с поддержкой токена и обходом CORS
 // @match        *://cs2run.bet/*
 // @connect      cs2run.app
-// @grant        GM_fetch
-// @grant        GM_xmlhttpRequest
+// @grant        none
 // @run-at       document-end
 // ==/UserScript==
 
