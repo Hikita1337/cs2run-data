@@ -992,13 +992,51 @@ settingsModal.appendChild(actions);
 settingsBackdrop.appendChild(settingsModal);
 document.body.appendChild(settingsBackdrop);
 }
+
 // =============================
-// 🧩 Автоучастие в розыгрыше (с повторными попытками)
+// 🧩 Автоучастие в розыгрыше с памятью и таймером
 // =============================
+const STORAGE_NEXT_JOIN = "cs2run_nextRaffleJoin";
+let nextJoinAt = Number(localStorage.getItem(STORAGE_NEXT_JOIN)) || null;
+
+// создаём элемент таймера прямо в HUD (над нижней шапкой)
+const raffleTimerEl = document.createElement("div");
+raffleTimerEl.id = "cs_raffle_timer";
+raffleTimerEl.style.textAlign = "center";
+raffleTimerEl.style.fontSize = "13px";
+raffleTimerEl.style.opacity = "0.95";
+raffleTimerEl.style.padding = "5px 8px";
+raffleTimerEl.style.borderTop = "1px solid rgba(255,255,255,0.08)";
+raffleTimerEl.style.userSelect = "none";
+raffleTimerEl.textContent = "";
+hud.insertBefore(raffleTimerEl, bottomRow);
+
+// вспомогательная функция форматирования
+function fmtCountdown(ms) {
+  if (ms <= 0) return "0:00";
+  const totalSec = Math.ceil(ms / 1000);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
+  return `${min}:${sec.toString().padStart(2, "0")}`;
+}
+
+// обновление таймера каждую секунду
+function updateRaffleTimerDisplay() {
+  const saved = Number(localStorage.getItem(STORAGE_NEXT_JOIN)) || nextJoinAt;
+  if (!saved || saved <= Date.now()) {
+    raffleTimerEl.textContent = "";
+    return;
+  }
+  const rem = saved - Date.now();
+  const modeText = (state.raffleMode === "custom") ? "Кастомный" : "Обычный";
+  raffleTimerEl.textContent = `🎯 ${modeText}: участие через ${fmtCountdown(rem)}`;
+}
+setInterval(updateRaffleTimerDisplay, 1000);
+updateRaffleTimerDisplay();
+
 if (state.autoRaffle) {
   console.log("🎁 Автоучастие в розыгрыше активно");
 
-  // === Получение текущего розыгрыша ===
   async function fetchCurrentRaffle() {
     try {
       const res = await fetch("https://cs2run.app/lottery/state?mode=1", { credentials: "include" });
@@ -1011,7 +1049,6 @@ if (state.autoRaffle) {
     }
   }
 
-  // === Участие в розыгрыше с повторными попытками ===
   async function joinRaffle(lotteryId, attempt = 1) {
     try {
       const res = await fetch("https://cs2run.app/lottery/join", {
@@ -1022,8 +1059,10 @@ if (state.autoRaffle) {
       });
 
       if (res.ok) {
-        console.log(`✅ Участие в розыгрыше #${lotteryId} принято (попытка ${attempt})`);
+        console.log(`✅ Участие #${lotteryId} принято (попытка ${attempt})`);
         showToast("✅ Участие в розыгрыше принято!");
+        localStorage.removeItem(STORAGE_NEXT_JOIN);
+        nextJoinAt = null;
         return true;
       } else {
         const txt = await res.text();
@@ -1033,17 +1072,15 @@ if (state.autoRaffle) {
       console.error(`⚠️ Ошибка при попытке ${attempt}:`, err);
     }
 
-    // Повтор через минуту, максимум 5 попыток
     if (attempt < 5) {
-      console.log(`🔁 Повторная попытка через 60 секунд (попытка ${attempt + 1}/5)...`);
+      console.log(`🔁 Повтор через 60 секунд (попытка ${attempt + 1}/5)...`);
       setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
     } else {
-      console.warn("🚫 Лимит повторов исчерпан, ждём следующий розыгрыш");
+      console.warn("🚫 Лимит повторов исчерпан");
     }
     return false;
   }
 
-  // === Вспомогательная функция уведомления ===
   function showToast(text) {
     const toast = document.createElement("div");
     toast.textContent = text;
@@ -1070,7 +1107,6 @@ if (state.autoRaffle) {
     }, 2000);
   }
 
-  // === Главный цикл автоучастия ===
   async function handleRaffleLoop() {
     const raffle = await fetchCurrentRaffle();
     if (!raffle) {
@@ -1083,45 +1119,64 @@ if (state.autoRaffle) {
     const start = new Date(startAt).getTime();
     const end = new Date(finishAt).getTime();
     const now = Date.now();
-
     const mode = state.raffleMode ?? "normal";
 
+    // --- если уже есть сохранённое будущее время — продолжаем отсчёт
+    const saved = Number(localStorage.getItem(STORAGE_NEXT_JOIN));
+    if (saved && saved > now) {
+      const remain = saved - now;
+      nextJoinAt = saved;
+      console.log(`🔁 Восстановлено: участие через ${(remain / 60000).toFixed(1)} мин`);
+      setTimeout(async () => {
+        const ok = await joinRaffle(lotteryId);
+        if (ok) localStorage.removeItem(STORAGE_NEXT_JOIN);
+        handleRaffleLoop();
+      }, remain);
+      return;
+    }
+
+    // --- обычный режим
     if (mode === "normal") {
-      console.log("🕓 Режим: обычный (раз в 30 мин ±1)");
+      console.log("🕓 Режим: обычный (30 мин ±1)");
       const baseMs = 30 * 60_000;
-      const offset = (Math.random() * 120_000) - 60_000;
+      const offset = Math.random() * 120_000 - 60_000;
+      const nextAt = Date.now() + baseMs + offset;
+      localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
+      nextJoinAt = nextAt;
       await joinRaffle(lotteryId);
       setTimeout(handleRaffleLoop, baseMs + offset);
       return;
     }
 
-    // === Кастомный режим ===
+    // --- кастомный режим
     const afterStartMin = Math.max(0, state.customAfterStart ?? 10);
     const beforeEndMin = Math.max(0, state.customBeforeEnd ?? 10);
 
-    const joinWindowStart = start + afterStartMin * 60_000;
-    const joinWindowEnd = end - beforeEndMin * 60_000;
+    const joinStart = start + afterStartMin * 60_000;
+    const joinEnd = end - beforeEndMin * 60_000;
 
-    if (now >= joinWindowEnd) {
-      console.log("⌛ Окно участия уже прошло, ждём следующий розыгрыш…");
+    if (now >= joinEnd) {
+      console.log("⌛ Окно участия прошло, ждём следующий розыгрыш");
       setTimeout(handleRaffleLoop, 60_000);
       return;
     }
 
-    const minDelay = Math.max(0, joinWindowStart - now);
-    const maxDelay = Math.max(minDelay, joinWindowEnd - now);
-    const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
+    const minDelay = Math.max(0, joinStart - now);
+    const maxDelay = Math.max(minDelay, joinEnd - now);
+    const delay = Math.random() * (maxDelay - minDelay) + minDelay;
+    const nextAt = Date.now() + delay;
+    localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
+    nextJoinAt = nextAt;
 
-    const delayMin = (randomDelay / 60000).toFixed(1);
-    console.log(`🎯 Участвуем через ${delayMin} мин (окно: +${afterStartMin} / -${beforeEndMin})`);
-
+    console.log(`🎯 Кастомный: участие через ${(delay / 60000).toFixed(2)} мин (окно +${afterStartMin}/-${beforeEndMin})`);
     setTimeout(async () => {
       const ok = await joinRaffle(lotteryId);
-      if (ok) console.log("🎉 Успешное участие — ждём следующий розыгрыш.");
+      if (ok) localStorage.removeItem(STORAGE_NEXT_JOIN);
       handleRaffleLoop();
-    }, randomDelay);
+    }, delay);
   }
 
   handleRaffleLoop();
 }
+
 })();
