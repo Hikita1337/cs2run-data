@@ -1,14 +1,39 @@
 // ==UserScript==
-// @name         CS2Run HUD редизайн
+// @name         CS2Run HUD редизайн (фикс fetch + токен)
 // @namespace    cs2runR.hud
-// @version      2.0
-// @description  HUD статистики CS2Run — омское время, настройки, подсветка коэффициента, перетаскивание, ресайз, прогресс/ожидание
+// @version      2.1
+// @description  HUD + автоучастие в розыгрыше с поддержкой токена и обходом CORS
 // @match        *://cs2run.bet/*
-// @grant        none
+// @connect      cs2run.app
+// @grant        GM_fetch
+// @grant        GM_xmlhttpRequest
 // @run-at       document-end
 // ==/UserScript==
 
 (async () => {
+  
+  async function safeFetch(url, options = {}) {
+  try {
+    // 🟩 Сначала пробуем обычный fetch — если домен совпадает, всё сработает
+    const res = await fetch(url, options);
+    if (res.ok) return res;
+    throw new Error("Fetch вернул ошибку: " + res.status);
+  } catch (err) {
+    console.warn("⚠️ fetch не сработал, пробую через GM_fetch…", err);
+    if (typeof GM_fetch === "function") {
+      try {
+        const gmRes = await GM_fetch(url, options);
+        return gmRes;
+      } catch (e2) {
+        console.error("🚫 Ошибка GM_fetch:", e2);
+        throw e2;
+      }
+    } else {
+      throw err;
+    }
+  }
+}
+  
   const ABLY_PUBLIC_KEY = "OPAt8A.dMkrwA:A9niPpJUrzV7J62AKvitMDaExAN6wJkJ_P1EnQ8Ya9Y";
   if (!window.Ably) {
     const s = document.createElement("script");
@@ -1038,148 +1063,183 @@ function updateRaffleTimerDisplay() {
     raffleTimerEl.textContent = "";
     return;
   }
+
   const rem = saved - Date.now();
   const modeText = (state.raffleMode === "custom") ? "Кастомный" : "Обычный";
-  raffleTimerEl.textContent = `🎯 ${modeText}: участие через ${fmtCountdown(rem)}`;
+  const nextDate = new Date(saved);
+
+  // 🕓 Форматируем время (часы:минуты:секунды)
+  const timeStr = nextDate.toLocaleTimeString("ru-RU", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  });
+
+  raffleTimerEl.textContent = `🎯 ${modeText}: участие через ${fmtCountdown(rem)} (в ${timeStr})`;
 }
+
 setInterval(updateRaffleTimerDisplay, 1000);
 updateRaffleTimerDisplay();
 
 if (state.autoRaffle) {
   console.log("🎁 Автоучастие в розыгрыше активно");
 
+  // 🔹 1. Получаем активный розыгрыш
   async function fetchCurrentRaffle() {
+    const token = localStorage.getItem("auth-token");
+    if (!token) {
+      console.warn("⚠️ Не найден auth-token. Войди в аккаунт и попробуй снова.");
+      return null;
+    }
+
     try {
-      const res = await fetch("https://cs2run.app/lottery/state?mode=1", { credentials: "include" });
-      if (!res.ok) throw new Error("Не удалось получить состояние розыгрыша");
+      const res = await safeFetch("https://cs2run.app/lottery/state?mode=1", {
+        method: "GET",
+        headers: {
+          "Accept": "application/json, text/plain, */*",
+          "Authorization": `JWT ${token}`
+        },
+        credentials: "include"
+      });
+
       const data = await res.json();
-      return data?.round ?? null;
+      console.log("📦 Ответ /lottery/state:", data);
+
+      // 🔍 Ищем розыгрыш с id = 169, где уже есть активный раунд
+const raffles = data?.data?.raffles || [];
+const target = raffles.find(r => 
+  r?.id === 169 &&
+  r?.round &&
+  (r.round.status === 1 || r.round.status === "1")
+);
+
+if (!target || !target.round) {
+  console.log("⏳ Нет активного розыгрыша с id = 169");
+  return null;
+}
+
+console.log("✅ Найден активный розыгрыш:", target.round);
+return {
+  ...target.round,
+  lotteryId: target.id
+};
+
+
     } catch (err) {
-      console.warn("⚠️ Ошибка получения розыгрыша:", err);
+      console.error("⚠️ Ошибка получения розыгрыша:", err);
       return null;
     }
   }
 
+  // 🔹 2. Отправляем участие
+  async function joinRaffle(lotteryId, attempt = 1) {
+    const token = localStorage.getItem("auth-token");
+    if (!token) {
+      console.warn("⚠️ Не найден auth-token. Войди в аккаунт и попробуй снова.");
+      return false;
+    }
 
+    try {
+      const res = await safeFetch("https://cs2run.app/lottery/join", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json, text/plain, */*",
+          "Authorization": `JWT ${token}`
+        },
+        body: JSON.stringify({ lotteryId }),
+        credentials: "include"
+      });
 
-async function joinRaffle(lotteryId, attempt = 1) {
-  const token = localStorage.getItem("auth-token");
-  if (!token) {
-    console.warn("⚠️ Не найден auth-token. Войди в аккаунт и попробуй снова.");
+      const text = await res.text();
+      if (res.ok) {
+        console.log(`✅ Участие в розыгрыше #${lotteryId} принято`);
+        showToast("🎁 Участие в розыгрыше принято!");
+        localStorage.removeItem(STORAGE_NEXT_JOIN);
+        nextJoinAt = null;
+        return true;
+      } else {
+        console.warn(`❌ Ошибка участия: ${text}`);
+      }
+    } catch (err) {
+      console.error(`⚠️ Ошибка запроса (попытка ${attempt}):`, err);
+    }
+
+    if (attempt < 3) {
+      console.log(`🔁 Повторная попытка через 60 сек (${attempt + 1}/3)`);
+      setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
+    } else {
+      console.warn("🚫 Лимит попыток исчерпан");
+    }
+
     return false;
   }
 
-  try {
-    const res = await fetch("https://cs2run.app/lottery/join", {
-      method: "POST",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/plain, */*",
-        "Authorization": `JWT ${token}`
-      },
-      body: JSON.stringify({ lotteryId })
-    });
-
-    const text = await res.text();
-    if (res.ok) {
-      console.log(`✅ Участие #${lotteryId} принято`);
-      showToast("🎁 Участие в розыгрыше принято!");
-      localStorage.removeItem(STORAGE_NEXT_JOIN);
-      nextJoinAt = null;
-      return true;
-    } else {
-      console.warn(`❌ Ошибка: ${text}`);
-    }
-  } catch (err) {
-    console.error(`⚠️ Ошибка запроса (попытка ${attempt}):`, err);
-  }
-
-  if (attempt < 3) {
-    console.log(`🔁 Повторная попытка через 60 сек (${attempt + 1}/3)`);
-    setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
-  } else {
-    console.warn("🚫 Лимит попыток исчерпан");
-  }
-
-  return false;
-}
-
-      function showToast(text) {
-    const toast = document.createElement("div");
-    toast.textContent = text;
-    Object.assign(toast.style, {
-      position: "fixed",
-      bottom: "20px",
-      left: "50%",
-      transform: "translateX(-50%)",
-      background: "rgba(0,0,0,0.75)",
-      color: "#fff",
-      padding: "8px 16px",
-      borderRadius: "8px",
-      fontWeight: "600",
-      fontSize: "13px",
-      zIndex: "1000006",
-      opacity: "0",
-      transition: "opacity 0.3s ease"
-    });
-    document.body.appendChild(toast);
-    requestAnimationFrame(() => toast.style.opacity = "1");
-    setTimeout(() => {
-      toast.style.opacity = "0";
-      setTimeout(() => toast.remove(), 400);
-    }, 2000);
-  }
-
+  // 🔹 3. Главный цикл
   async function handleRaffleLoop() {
     const raffle = await fetchCurrentRaffle();
     if (!raffle) {
-      console.log("⏳ Нет активного розыгрыша, повтор через 1 мин...");
+      console.log("⏳ Нет активного розыгрыша, проверим через 1 мин...");
       setTimeout(handleRaffleLoop, 60_000);
       return;
     }
 
+    const lotteryId = raffle.id;
     const { startAt, finishAt } = raffle;
-const lotteryId = 169; // 🔒 фиксированный ID розыгрыша
     const start = new Date(startAt).getTime();
     const end = new Date(finishAt).getTime();
     const now = Date.now();
+
     const mode = state.raffleMode ?? "normal";
 
-    // --- если уже есть сохранённое будущее время — продолжаем отсчёт
     const saved = Number(localStorage.getItem(STORAGE_NEXT_JOIN));
     if (saved && saved > now) {
       const remain = saved - now;
-      nextJoinAt = saved;
-      console.log(`🔁 Восстановлено: участие через ${(remain / 60000).toFixed(1)} мин`);
+      console.log(`🔁 Восстановлено участие через ${(remain / 60000).toFixed(1)} мин`);
       setTimeout(async () => {
-        const ok = await joinRaffle(lotteryId);
-        if (ok) localStorage.removeItem(STORAGE_NEXT_JOIN);
+        await joinRaffle(raffle.lotteryId || raffle.id);
         handleRaffleLoop();
       }, remain);
       return;
     }
 
-    // --- обычный режим
-    if (mode === "normal") {
-      console.log("🕓 Режим: обычный (30 мин ±1)");
-      const baseMs = 30 * 60_000;
-      const offset = Math.random() * 120_000 - 60_000;
-      const nextAt = Date.now() + baseMs + offset;
-      localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
-      nextJoinAt = nextAt;
-      await joinRaffle(lotteryId);
-      setTimeout(handleRaffleLoop, baseMs + offset);
-      return;
-    }
+    // 🕓 Обычный режим: 30 ±1 мин
+if (mode === "normal") {
+  const base = 30 * 60_000;
+  const offset = Math.random() * 120_000 - 60_000; // ±1 минута
+  const delay = base + offset;
+  const nextAt = Date.now() + delay;
 
-    // --- кастомный режим
-    const afterStartMin = Math.max(0, state.customAfterStart ?? 10);
-    const beforeEndMin = Math.max(0, state.customBeforeEnd ?? 10);
+  localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
+  nextJoinAt = nextAt;
 
-    const joinStart = start + afterStartMin * 60_000;
-    const joinEnd = end - beforeEndMin * 60_000;
+  // 🕓 Красивый вывод времени следующего участия
+  const nextDate = new Date(nextAt);
+  const timeStr = nextDate.toLocaleTimeString("ru-RU", {
+    hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
+  });
+  const minutes = Math.floor(delay / 60000);
+  const seconds = Math.floor((delay % 60000) / 1000);
 
+  console.log(`🎯 Обычный: участие через ${minutes} мин ${seconds} сек (в ${timeStr})`);
+
+  // 💥 Сразу участвуем при запуске, потом повторяем
+  await joinRaffle(raffle.lotteryId || raffle.id);
+
+  setTimeout(async () => {
+    console.log("🚀 Наступило время повторного участия (обычный режим)");
+    await joinRaffle(raffle.lotteryId || raffle.id);
+    handleRaffleLoop();
+  }, delay);
+  return;
+}
+
+    // Кастомный режим
+    const after = Math.max(0, state.customAfterStart ?? 10);
+    const before = Math.max(0, state.customBeforeEnd ?? 10);
+    const joinStart = start + after * 60_000;
+    const joinEnd = end - before * 60_000;
     if (now >= joinEnd) {
       console.log("⌛ Окно участия прошло, ждём следующий розыгрыш");
       setTimeout(handleRaffleLoop, 60_000);
@@ -1187,21 +1247,39 @@ const lotteryId = 169; // 🔒 фиксированный ID розыгрыша
     }
 
     const minDelay = Math.max(0, joinStart - now);
-    const maxDelay = Math.max(minDelay, joinEnd - now);
-    const delay = Math.random() * (maxDelay - minDelay) + minDelay;
-    const nextAt = Date.now() + delay;
-    localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
-    nextJoinAt = nextAt;
+const maxDelay = Math.max(minDelay, joinEnd - now);
+const delay = Math.random() * (maxDelay - minDelay) + minDelay;
+const nextAt = Date.now() + delay;
+localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
+nextJoinAt = nextAt;
 
-    console.log(`🎯 Кастомный: участие через ${(delay / 60000).toFixed(2)} мин (окно +${afterStartMin}/-${beforeEndMin})`);
-    setTimeout(async () => {
-      const ok = await joinRaffle(lotteryId);
-      if (ok) localStorage.removeItem(STORAGE_NEXT_JOIN);
-      handleRaffleLoop();
-    }, delay);
+// 🕓 Человеческое время следующего участия
+const nextDate = new Date(nextAt);
+const timeStr = nextDate.toLocaleTimeString("ru-RU", {
+  hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
+});
+const minutes = Math.floor(delay / 60000);
+const seconds = Math.floor((delay % 60000) / 1000);
+
+console.log(`🎯 Кастомный: участие через ${minutes} мин ${seconds} сек (в ${timeStr})`);
+
+setTimeout(async () => {
+  try {
+    console.log("🚀 Наступило время повторного участия (обычный режим)");
+    await joinRaffle(lotteryId);
+  } catch (err) {
+    console.error("⚠️ Ошибка во время повторного участия:", err);
+  } finally {
+    handleRaffleLoop();
   }
-
-  handleRaffleLoop();
+}, delay);
+  }
+// 🟢 Сразу принимаем участие при первом запуске (если таймер ещё не установлен)
+const raffle = await fetchCurrentRaffle();
+if (raffle && raffle.id === 169 && !localStorage.getItem(STORAGE_NEXT_JOIN)) {
+  console.log("🎯 Моментальное участие в розыгрыше при старте...");
+  await joinRaffle(raffle.id);
 }
-
-})();
+handleRaffleLoop();
+}
+})(); // ✅ Закрывает главный async-блок
