@@ -1060,63 +1060,52 @@ if (state.autoRaffle) {
     }
   }
 
-    // =============================
-  // 🧩 Обновлённая функция joinRaffle с JWT токеном
-  // =============================
-  function getJwtToken() {
-    // попробуем достать токен из localStorage, где он обычно лежит
-    const token =
-      localStorage.getItem("jwt") ||
-      localStorage.getItem("auth-token") ||
-      localStorage.getItem("token") ||
-      "";
-    return token;
-  }
 
-  async function joinRaffle(lotteryId, attempt = 1) {
-    const token = getJwtToken();
-    if (!token) {
-      console.warn("⚠️ JWT токен не найден. Авторизуйся на сайте, потом перезапусти HUD.");
-      return false;
-    }
 
-    try {
-      const res = await fetch("https://cs2run.app/lottery/join", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json, text/plain, */*",
-          "Authorization": "JWT " + token
-        },
-        body: JSON.stringify({ lotteryId })
-      });
-
-      const text = await res.text();
-      if (res.ok) {
-        console.log(`✅ Участие #${lotteryId} принято`);
-        showToast("🎁 Участие в розыгрыше принято!");
-        localStorage.removeItem(STORAGE_NEXT_JOIN);
-        nextJoinAt = null;
-        return true;
-      } else {
-        console.warn(`❌ Ошибка: ${text}`);
-      }
-    } catch (err) {
-      console.error(`⚠️ Ошибка запроса (попытка ${attempt}):`, err);
-    }
-
-    if (attempt < 3) {
-      console.log(`🔁 Повторная попытка через 60 сек (${attempt + 1}/3)`);
-      setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
-    } else {
-      console.warn("🚫 Лимит попыток исчерпан");
-    }
+async function joinRaffle(lotteryId, attempt = 1) {
+  const token = localStorage.getItem("auth-token");
+  if (!token) {
+    console.warn("⚠️ Не найден auth-token. Войди в аккаунт и попробуй снова.");
     return false;
   }
 
-      
+  try {
+    const res = await fetch("https://cs2run.app/lottery/join", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/plain, */*",
+        "Authorization": `JWT ${token}`
+      },
+      body: JSON.stringify({ lotteryId })
+    });
 
-  function showToast(text) {
+    const text = await res.text();
+    if (res.ok) {
+      console.log(`✅ Участие #${lotteryId} принято`);
+      showToast("🎁 Участие в розыгрыше принято!");
+      localStorage.removeItem(STORAGE_NEXT_JOIN);
+      nextJoinAt = null;
+      return true;
+    } else {
+      console.warn(`❌ Ошибка: ${text}`);
+    }
+  } catch (err) {
+    console.error(`⚠️ Ошибка запроса (попытка ${attempt}):`, err);
+  }
+
+  if (attempt < 3) {
+    console.log(`🔁 Повторная попытка через 60 сек (${attempt + 1}/3)`);
+    setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
+  } else {
+    console.warn("🚫 Лимит попыток исчерпан");
+  }
+
+  return false;
+}
+
+      function showToast(text) {
     const toast = document.createElement("div");
     toast.textContent = text;
     Object.assign(toast.style, {
