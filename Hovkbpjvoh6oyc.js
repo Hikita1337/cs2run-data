@@ -1051,7 +1051,7 @@ if (state.autoRaffle) {
 
   async function joinRaffle(lotteryId, attempt = 1) {
     try {
-      const res = await fetch("https://cs2run.app/lottery/join", {
+      const res = await fetch("https://cs2run.bet/lottery/join", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
