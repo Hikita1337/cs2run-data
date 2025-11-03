@@ -983,6 +983,17 @@ setTimeout(() => {
   toast.style.transform = "translate(-50%, -50%) scale(0.95)";
   setTimeout(() => toast.remove(), 400);
 }, 1600);
+
+// 🔁 Автозапуск автоучастия и таймера после включения тумблера
+if (state.autoRaffle) {
+  console.log("🎯 Автоучастие включено вручную — запускаем цикл");
+  if (typeof handleRaffleLoop === "function") handleRaffleLoop();
+} else {
+  console.log("⏹️ Автоучастие выключено — останавливаем таймер");
+  localStorage.removeItem(STORAGE_NEXT_JOIN);
+  nextJoinAt = null;
+  raffleTimerEl.textContent = "";
+}
 }; // ← закрывает applyBtn.onclick
 
 // ⬇️ Всё, что ниже — уже вне функции
