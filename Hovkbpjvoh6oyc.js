@@ -850,51 +850,64 @@ selectRaffleMode.onchange = () => {
 rowRaffleMode.append(labelRaffleMode, selectRaffleMode);
 settingsModal.appendChild(rowRaffleMode);
 
-// --- Интервал (для кастомного режима) ---
-const rowCustomInterval = document.createElement("div");
-rowCustomInterval.className = "cs-row";
-const labelCustomInterval = document.createElement("label");
-labelCustomInterval.textContent = "Интервал (минуты)";
-const inputCustomInterval = document.createElement("input");
-inputCustomInterval.type = "number";
-inputCustomInterval.min = 5;
-inputCustomInterval.max = 60;
-inputCustomInterval.value = tempState.customInterval ?? 30;
-inputCustomInterval.style.width = "70px";
-inputCustomInterval.oninput = () => tempState.customInterval = Number(inputCustomInterval.value);
-rowCustomInterval.append(labelCustomInterval, inputCustomInterval);
-settingsModal.appendChild(rowCustomInterval);
+// --- Информационный блок для кастомного режима ---
+const customInfo = document.createElement("div");
+customInfo.style.textAlign = "center";
+customInfo.style.fontSize = "12.5px";
+customInfo.style.opacity = "0.9";
+customInfo.style.margin = "4px 0 6px 0";
+customInfo.style.fontWeight = "500";
+customInfo.textContent = "🕓 Промежуток, в котором будет принято участие";
+settingsModal.appendChild(customInfo);
 
-// --- Разброс ± (для кастомного режима) ---
-const rowCustomOffset = document.createElement("div");
-rowCustomOffset.className = "cs-row";
-const labelCustomOffset = document.createElement("label");
-labelCustomOffset.textContent = "Разброс ± (минуты)";
-const inputCustomOffset = document.createElement("input");
-inputCustomOffset.type = "number";
-inputCustomOffset.min = 0;
-inputCustomOffset.max = 10;
-inputCustomOffset.value = tempState.customOffset ?? 1;
-inputCustomOffset.style.width = "70px";
-inputCustomOffset.oninput = () => tempState.customOffset = Number(inputCustomOffset.value);
-rowCustomOffset.append(labelCustomOffset, inputCustomOffset);
-settingsModal.appendChild(rowCustomOffset);
+// --- После начала (для кастомного режима) ---
+const rowAfterStart = document.createElement("div");
+rowAfterStart.className = "cs-row";
+const labelAfterStart = document.createElement("label");
+labelAfterStart.textContent = "После начала (минуты)";
+const inputAfterStart = document.createElement("input");
+inputAfterStart.type = "number";
+inputAfterStart.min = 0;
+inputAfterStart.max = 25;
+inputAfterStart.value = tempState.customAfterStart ?? 10;
+inputAfterStart.style.width = "70px";
+inputAfterStart.oninput = () => tempState.customAfterStart = Number(inputAfterStart.value);
+rowAfterStart.append(labelAfterStart, inputAfterStart);
+settingsModal.appendChild(rowAfterStart);
 
-// --- Подсказка ---
+// --- До конца (для кастомного режима) ---
+const rowBeforeEnd = document.createElement("div");
+rowBeforeEnd.className = "cs-row";
+const labelBeforeEnd = document.createElement("label");
+labelBeforeEnd.textContent = "До конца (минуты)";
+const inputBeforeEnd = document.createElement("input");
+inputBeforeEnd.type = "number";
+inputBeforeEnd.min = 0;
+inputBeforeEnd.max = 25;
+inputBeforeEnd.value = tempState.customBeforeEnd ?? 10;
+inputBeforeEnd.style.width = "70px";
+inputBeforeEnd.oninput = () => tempState.customBeforeEnd = Number(inputBeforeEnd.value);
+rowBeforeEnd.append(labelBeforeEnd, inputBeforeEnd);
+settingsModal.appendChild(rowBeforeEnd);
+
+// --- Подсказка под блоком ---
 const noteAutoRaffle = document.createElement("div");
 noteAutoRaffle.textContent = "Обычный режим — раз в 30 мин ± 1 мин.";
 noteAutoRaffle.style.fontSize = "11.5px";
 noteAutoRaffle.style.opacity = "0.8";
-noteAutoRaffle.style.margin = "-6px 0 6px 2px";
+noteAutoRaffle.style.margin = "-4px 0 6px 2px";
 settingsModal.appendChild(noteAutoRaffle);
 
 // --- Управление видимостью полей ---
 function updateCustomFieldsVisibility() {
   const isCustom = selectRaffleMode.value === "custom";
-  rowCustomInterval.style.display = isCustom ? "flex" : "none";
-  rowCustomOffset.style.display = isCustom ? "flex" : "none";
+  customInfo.style.display = isCustom ? "block" : "none";
+  rowAfterStart.style.display = isCustom ? "flex" : "none";
+  rowBeforeEnd.style.display = isCustom ? "flex" : "none";
 }
-updateCustomFieldsVisibility(); // применяем при открытии настроек
+updateCustomFieldsVisibility();
+
+
 
   // --- Кнопки управления ---
   const actions = document.createElement("div");
@@ -980,73 +993,135 @@ settingsBackdrop.appendChild(settingsModal);
 document.body.appendChild(settingsBackdrop);
 }
 // =============================
-// 🧩 Автоучастие в розыгрыше
+// 🧩 Автоучастие в розыгрыше (с повторными попытками)
 // =============================
 if (state.autoRaffle) {
   console.log("🎁 Автоучастие в розыгрыше активно");
 
-  async function joinRaffle() {
+  // === Получение текущего розыгрыша ===
+  async function fetchCurrentRaffle() {
     try {
-      const resp = await fetch("https://cs2run.app/lottery/join", {
+      const res = await fetch("https://cs2run.app/lottery/state?mode=1", { credentials: "include" });
+      if (!res.ok) throw new Error("Не удалось получить состояние розыгрыша");
+      const data = await res.json();
+      return data?.round ?? null;
+    } catch (err) {
+      console.warn("⚠️ Ошибка получения розыгрыша:", err);
+      return null;
+    }
+  }
+
+  // === Участие в розыгрыше с повторными попытками ===
+  async function joinRaffle(lotteryId, attempt = 1) {
+    try {
+      const res = await fetch("https://cs2run.app/lottery/join", {
         method: "POST",
-        credentials: "include"
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lotteryId })
       });
-      if (resp.ok) {
-        const toast = document.createElement("div");
-        toast.textContent = "✅ Участие в розыгрыше принято!";
-        Object.assign(toast.style, {
-          position: "fixed",
-          bottom: "20px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(0,0,0,0.75)",
-          color: "#fff",
-          padding: "8px 16px",
-          borderRadius: "8px",
-          fontWeight: "600",
-          fontSize: "13px",
-          zIndex: "1000006",
-          opacity: "0",
-          transition: "opacity 0.3s ease"
-        });
-        document.body.appendChild(toast);
-        requestAnimationFrame(() => toast.style.opacity = "1");
-        setTimeout(() => {
-          toast.style.opacity = "0";
-          setTimeout(() => toast.remove(), 400);
-        }, 2000);
+
+      if (res.ok) {
+        console.log(`✅ Участие в розыгрыше #${lotteryId} принято (попытка ${attempt})`);
+        showToast("✅ Участие в розыгрыше принято!");
+        return true;
       } else {
-        console.warn("Не удалось принять участие:", await resp.text());
+        const txt = await res.text();
+        console.warn(`❌ Попытка ${attempt} не удалась: ${txt}`);
       }
     } catch (err) {
-      console.error("Ошибка автоучастия:", err);
+      console.error(`⚠️ Ошибка при попытке ${attempt}:`, err);
     }
+
+    // Повтор через минуту, максимум 5 попыток
+    if (attempt < 5) {
+      console.log(`🔁 Повторная попытка через 60 секунд (попытка ${attempt + 1}/5)...`);
+      setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
+    } else {
+      console.warn("🚫 Лимит повторов исчерпан, ждём следующий розыгрыш");
+    }
+    return false;
   }
 
-  // первая попытка
-  joinRaffle();
-
-  const mode = state.raffleMode ?? "normal";
-  if (mode === "normal") {
-    // обычный режим — каждые 30 мин ±1 мин
-    setInterval(() => {
-      const offset = Math.random() * 120000 - 60000;
-      setTimeout(joinRaffle, offset);
-    }, 30 * 60 * 1000);
-  } else {
-    // кастомный режим
-    const base = Math.max(5, state.customInterval ?? 30); // мин
-    const offset = Math.max(0, state.customOffset ?? 1);  // разброс ±
-    function scheduleNext() {
-      const nextMinutes = base + (Math.random() * 2 * offset - offset);
-      const nextMs = nextMinutes * 60 * 1000;
-      console.log(`🕓 Следующее автоучастие через ${nextMinutes.toFixed(1)} мин`);
-      setTimeout(async () => {
-        await joinRaffle();
-        scheduleNext(); // планируем следующее
-      }, nextMs);
-    }
-    scheduleNext();
+  // === Вспомогательная функция уведомления ===
+  function showToast(text) {
+    const toast = document.createElement("div");
+    toast.textContent = text;
+    Object.assign(toast.style, {
+      position: "fixed",
+      bottom: "20px",
+      left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(0,0,0,0.75)",
+      color: "#fff",
+      padding: "8px 16px",
+      borderRadius: "8px",
+      fontWeight: "600",
+      fontSize: "13px",
+      zIndex: "1000006",
+      opacity: "0",
+      transition: "opacity 0.3s ease"
+    });
+    document.body.appendChild(toast);
+    requestAnimationFrame(() => toast.style.opacity = "1");
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      setTimeout(() => toast.remove(), 400);
+    }, 2000);
   }
+
+  // === Главный цикл автоучастия ===
+  async function handleRaffleLoop() {
+    const raffle = await fetchCurrentRaffle();
+    if (!raffle) {
+      console.log("⏳ Нет активного розыгрыша, повтор через 1 мин...");
+      setTimeout(handleRaffleLoop, 60_000);
+      return;
+    }
+
+    const { startAt, finishAt, lotteryId } = raffle;
+    const start = new Date(startAt).getTime();
+    const end = new Date(finishAt).getTime();
+    const now = Date.now();
+
+    const mode = state.raffleMode ?? "normal";
+
+    if (mode === "normal") {
+      console.log("🕓 Режим: обычный (раз в 30 мин ±1)");
+      const baseMs = 30 * 60_000;
+      const offset = (Math.random() * 120_000) - 60_000;
+      await joinRaffle(lotteryId);
+      setTimeout(handleRaffleLoop, baseMs + offset);
+      return;
+    }
+
+    // === Кастомный режим ===
+    const afterStartMin = Math.max(0, state.customAfterStart ?? 10);
+    const beforeEndMin = Math.max(0, state.customBeforeEnd ?? 10);
+
+    const joinWindowStart = start + afterStartMin * 60_000;
+    const joinWindowEnd = end - beforeEndMin * 60_000;
+
+    if (now >= joinWindowEnd) {
+      console.log("⌛ Окно участия уже прошло, ждём следующий розыгрыш…");
+      setTimeout(handleRaffleLoop, 60_000);
+      return;
+    }
+
+    const minDelay = Math.max(0, joinWindowStart - now);
+    const maxDelay = Math.max(minDelay, joinWindowEnd - now);
+    const randomDelay = Math.random() * (maxDelay - minDelay) + minDelay;
+
+    const delayMin = (randomDelay / 60000).toFixed(1);
+    console.log(`🎯 Участвуем через ${delayMin} мин (окно: +${afterStartMin} / -${beforeEndMin})`);
+
+    setTimeout(async () => {
+      const ok = await joinRaffle(lotteryId);
+      if (ok) console.log("🎉 Успешное участие — ждём следующий розыгрыш.");
+      handleRaffleLoop();
+    }, randomDelay);
+  }
+
+  handleRaffleLoop();
 }
 })();
