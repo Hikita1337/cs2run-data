@@ -1,38 +1,14 @@
 // ==UserScript==
-// @name         CS2Run HUD редизайн (фикс fetch + токен)
+// @name         CS2Run HUD редизайн
 // @namespace    cs2runR.hud
-// @version      2.1
-// @description  HUD + автоучастие в розыгрыше с поддержкой токена и обходом CORS
+// @version      2.0
+// @description  HUD статистики CS2Run — омское время, настройки, подсветка коэффициента, перетаскивание, ресайз, прогресс/ожидание
 // @match        *://cs2run.bet/*
-// @connect      cs2run.app
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
 
 (async () => {
-  
-  async function safeFetch(url, options = {}) {
-  try {
-    // 🟩 Сначала пробуем обычный fetch — если домен совпадает, всё сработает
-    const res = await fetch(url, options);
-    if (res.ok) return res;
-    throw new Error("Fetch вернул ошибку: " + res.status);
-  } catch (err) {
-    console.warn("⚠️ fetch не сработал, пробую через GM_fetch…", err);
-    if (typeof GM_fetch === "function") {
-      try {
-        const gmRes = await GM_fetch(url, options);
-        return gmRes;
-      } catch (e2) {
-        console.error("🚫 Ошибка GM_fetch:", e2);
-        throw e2;
-      }
-    } else {
-      throw err;
-    }
-  }
-}
-  
   const ABLY_PUBLIC_KEY = "OPAt8A.dMkrwA:A9niPpJUrzV7J62AKvitMDaExAN6wJkJ_P1EnQ8Ya9Y";
   if (!window.Ably) {
     const s = document.createElement("script");
@@ -173,48 +149,10 @@ style.textContent = `
   .ios-toggle:checked::before {
     transform: translateX(18px);
   }
-/* --- поля ввода и выбора --- */
-.cs-settings select, 
-.cs-settings input[type="number"] {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 6px;
-  padding: 2px 6px;
-  color: inherit;
-  font-size: 13px;
-  height: 24px;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-/* Тёмная тема — мягкая рамка */
-.cs-settings.dark select, 
-.cs-settings.dark input[type="number"] {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
-}
-
-/* Светлая тема — чёткая рамка */
-.cs-settings:not(.dark) select, 
-.cs-settings:not(.dark) input[type="number"] {
-  background: rgba(255,255,255,0.9);
-  border: 1px solid rgba(0,0,0,0.15);
-  color: #111;
-}
-
-/* При фокусе (нажатии) — подсветка */
-.cs-settings select:focus, 
-.cs-settings input[type="number"]:focus {
-  outline: none;
-  border-color: #007AFF;
-}
-
 
   @media (max-width: 600px) {
     .cs-settings { width: 86vw; height: 60vh; }
     hud { width: 92vw !important; left: 4vw !important; }
-    
-  
-    
   }
 `;
 document.head.appendChild(style);
@@ -711,7 +649,7 @@ function openSettings() {
   header.innerHTML = `<div style="font-weight:700">Настройки HUD</div><div style="font-size:12px;color:#888">v2.0</div>`;
   settingsModal.appendChild(header);
 
-// --- Тема ---
+  // --- Тема ---
 const rowTheme = document.createElement("div");
 rowTheme.className = "cs-row";
 
@@ -719,42 +657,17 @@ const labelTheme = document.createElement("label");
 labelTheme.textContent = "Тема";
 
 const selTheme = document.createElement("select");
+selTheme.style.width = "110px"; // фиксированная ширина
+selTheme.style.marginLeft = "8px";
+selTheme.style.background = "rgba(255,255,255,0.08)";
+selTheme.style.color = "inherit";
+selTheme.style.border = "1px solid rgba(255,255,255,0.12)";
+selTheme.style.borderRadius = "6px";
+selTheme.style.padding = "2px 6px";
+selTheme.style.fontSize = "13px";
+selTheme.style.height = "24px";
+selTheme.style.cursor = "pointer";
 
-// Унифицированный стиль выбора темы (такой же, как у выбора "Обычный / Кастомный")
-Object.assign(selTheme.style, {
-  width: "110px",
-  marginLeft: "8px",
-  borderRadius: "6px",
-  padding: "2px 6px",
-  fontSize: "13px",
-  height: "26px",
-  cursor: "pointer",
-  appearance: "none",
-  transition: "border-color 0.2s ease, background 0.2s ease, color 0.2s ease",
-  background: state.theme === "dark"
-    ? "rgba(255,255,255,0.08)"
-    : "rgba(255,255,255,0.9)",
-  color: state.theme === "dark" ? "#fff" : "#111",
-  border: state.theme === "dark"
-    ? "1px solid rgba(255,255,255,0.15)"
-    : "1px solid rgba(0,0,0,0.25)",
-  boxShadow: state.theme === "light"
-    ? "0 1px 2px rgba(0,0,0,0.1)"
-    : "inset 0 0 0 1px rgba(255,255,255,0.08)",
-  WebkitTextFillColor: state.theme === "dark" ? "#fff" : "#111", // 👈 важно для Safari
-});
-
-// hover эффект — лёгкое выделение рамки
-selTheme.onmouseenter = () => {
-  selTheme.style.borderColor = "#007AFF";
-};
-selTheme.onmouseleave = () => {
-  selTheme.style.borderColor = state.theme === "dark"
-    ? "rgba(255,255,255,0.15)"
-    : "rgba(0,0,0,0.25)";
-};
-
-// варианты выбора
 ["auto", "light", "dark"].forEach(t => {
   const opt = document.createElement("option");
   opt.value = t;
@@ -766,29 +679,7 @@ selTheme.onmouseleave = () => {
   selTheme.appendChild(opt);
 });
 
-// 🔥 Мгновенное применение темы при выборе
-selTheme.onchange = () => {
-  tempState.theme = selTheme.value;
-  applyThemeToElement(hud, selTheme.value); // сразу перекрашивает HUD
-
-  // Обновляем тему окна настроек сразу (без "Применить")
-  if (selTheme.value === "dark") {
-    settingsModal.classList.add("dark");
-    settingsModal.style.background = "rgba(28,28,30,0.98)";
-    settingsModal.style.color = "#EEE";
-  } else if (selTheme.value === "light") {
-    settingsModal.classList.remove("dark");
-    settingsModal.style.background = "rgba(255,255,255,0.95)";
-    settingsModal.style.color = "#1C1C1E";
-  } else {
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    settingsModal.classList.toggle("dark", prefersDark);
-    settingsModal.style.background = prefersDark
-      ? "rgba(28,28,30,0.98)"
-      : "rgba(255,255,255,0.95)";
-    settingsModal.style.color = prefersDark ? "#EEE" : "#1C1C1E";
-  }
-};
+selTheme.onchange = () => (tempState.theme = selTheme.value);
 
 rowTheme.append(labelTheme, selTheme);
 settingsModal.appendChild(rowTheme);
@@ -832,106 +723,6 @@ settingsModal.appendChild(rowOpacity);
   const rowCpu = createToggleRow("Показать CPU", "showCpu");
   const rowCrash = createToggleRow("Показать текущий коэффициент", "showCurrentCrash");
   settingsModal.append(rowPing, rowCpu, rowCrash);
-
-// --- Автоучастие в розыгрыше ---
-const rowAutoRaffle = document.createElement("div");
-rowAutoRaffle.className = "cs-row";
-
-const labelAutoRaffle = document.createElement("label");
-labelAutoRaffle.textContent = "Автоучастие в розыгрыше";
-
-const toggleAutoRaffle = document.createElement("input");
-toggleAutoRaffle.type = "checkbox";
-toggleAutoRaffle.className = "ios-toggle";
-toggleAutoRaffle.checked = tempState.autoRaffle ?? false;
-toggleAutoRaffle.onchange = () => tempState.autoRaffle = toggleAutoRaffle.checked;
-
-rowAutoRaffle.append(labelAutoRaffle, toggleAutoRaffle);
-settingsModal.appendChild(rowAutoRaffle);
-
-// --- Режим автоучастия ---
-const rowRaffleMode = document.createElement("div");
-rowRaffleMode.className = "cs-row";
-const labelRaffleMode = document.createElement("label");
-labelRaffleMode.textContent = "Режим автоучастия";
-
-const selectRaffleMode = document.createElement("select");
-selectRaffleMode.style.width = "110px";
-selectRaffleMode.style.padding = "2px 6px";
-selectRaffleMode.style.borderRadius = "6px";
-
-["normal", "custom"].forEach(v => {
-  const opt = document.createElement("option");
-  opt.value = v;
-  opt.textContent = v === "normal" ? "Обычный" : "Кастомный";
-  if (tempState.raffleMode === v) opt.selected = true;
-  selectRaffleMode.appendChild(opt);
-});
-selectRaffleMode.onchange = () => {
-  tempState.raffleMode = selectRaffleMode.value;
-  updateCustomFieldsVisibility();
-};
-rowRaffleMode.append(labelRaffleMode, selectRaffleMode);
-settingsModal.appendChild(rowRaffleMode);
-
-// --- Информационный блок для кастомного режима ---
-const customInfo = document.createElement("div");
-customInfo.style.textAlign = "center";
-customInfo.style.fontSize = "12.5px";
-customInfo.style.opacity = "0.9";
-customInfo.style.margin = "4px 0 6px 0";
-customInfo.style.fontWeight = "500";
-customInfo.textContent = "🕓 Промежуток, в котором будет принято участие";
-settingsModal.appendChild(customInfo);
-
-// --- После начала (для кастомного режима) ---
-const rowAfterStart = document.createElement("div");
-rowAfterStart.className = "cs-row";
-const labelAfterStart = document.createElement("label");
-labelAfterStart.textContent = "После начала (минуты)";
-const inputAfterStart = document.createElement("input");
-inputAfterStart.type = "number";
-inputAfterStart.min = 0;
-inputAfterStart.max = 25;
-inputAfterStart.value = tempState.customAfterStart ?? 10;
-inputAfterStart.style.width = "70px";
-inputAfterStart.oninput = () => tempState.customAfterStart = Number(inputAfterStart.value);
-rowAfterStart.append(labelAfterStart, inputAfterStart);
-settingsModal.appendChild(rowAfterStart);
-
-// --- До конца (для кастомного режима) ---
-const rowBeforeEnd = document.createElement("div");
-rowBeforeEnd.className = "cs-row";
-const labelBeforeEnd = document.createElement("label");
-labelBeforeEnd.textContent = "До конца (минуты)";
-const inputBeforeEnd = document.createElement("input");
-inputBeforeEnd.type = "number";
-inputBeforeEnd.min = 0;
-inputBeforeEnd.max = 25;
-inputBeforeEnd.value = tempState.customBeforeEnd ?? 10;
-inputBeforeEnd.style.width = "70px";
-inputBeforeEnd.oninput = () => tempState.customBeforeEnd = Number(inputBeforeEnd.value);
-rowBeforeEnd.append(labelBeforeEnd, inputBeforeEnd);
-settingsModal.appendChild(rowBeforeEnd);
-
-// --- Подсказка под блоком ---
-const noteAutoRaffle = document.createElement("div");
-noteAutoRaffle.textContent = "Обычный режим — раз в 30 мин ± 1 мин.";
-noteAutoRaffle.style.fontSize = "11.5px";
-noteAutoRaffle.style.opacity = "0.8";
-noteAutoRaffle.style.margin = "-4px 0 6px 2px";
-settingsModal.appendChild(noteAutoRaffle);
-
-// --- Управление видимостью полей ---
-function updateCustomFieldsVisibility() {
-  const isCustom = selectRaffleMode.value === "custom";
-  customInfo.style.display = isCustom ? "block" : "none";
-  rowAfterStart.style.display = isCustom ? "flex" : "none";
-  rowBeforeEnd.style.display = isCustom ? "flex" : "none";
-}
-updateCustomFieldsVisibility();
-
-
 
   // --- Кнопки управления ---
   const actions = document.createElement("div");
@@ -1007,17 +798,6 @@ setTimeout(() => {
   toast.style.transform = "translate(-50%, -50%) scale(0.95)";
   setTimeout(() => toast.remove(), 400);
 }, 1600);
-
-// 🔁 Автозапуск автоучастия и таймера после включения тумблера
-if (state.autoRaffle) {
-  console.log("🎯 Автоучастие включено вручную — запускаем цикл");
-  if (typeof handleRaffleLoop === "function") handleRaffleLoop();
-} else {
-  console.log("⏹️ Автоучастие выключено — останавливаем таймер");
-  localStorage.removeItem(STORAGE_NEXT_JOIN);
-  nextJoinAt = null;
-  raffleTimerEl.textContent = "";
-}
 }; // ← закрывает applyBtn.onclick
 
 // ⬇️ Всё, что ниже — уже вне функции
@@ -1027,300 +807,4 @@ settingsModal.appendChild(actions);
 settingsBackdrop.appendChild(settingsModal);
 document.body.appendChild(settingsBackdrop);
 }
-
-// =============================
-// 🧩 Автоучастие в розыгрыше с памятью и таймером
-// =============================
-const STORAGE_NEXT_JOIN = "cs2run_nextRaffleJoin";
-let nextJoinAt = Number(localStorage.getItem(STORAGE_NEXT_JOIN)) || null;
-
-// создаём элемент таймера прямо в HUD (над нижней шапкой)
-const raffleTimerEl = document.createElement("div");
-raffleTimerEl.id = "cs_raffle_timer";
-raffleTimerEl.style.textAlign = "center";
-raffleTimerEl.style.fontSize = "13px";
-raffleTimerEl.style.opacity = "0.95";
-raffleTimerEl.style.padding = "5px 8px";
-raffleTimerEl.style.borderTop = "1px solid rgba(255,255,255,0.08)";
-raffleTimerEl.style.userSelect = "none";
-raffleTimerEl.textContent = "";
-hud.insertBefore(raffleTimerEl, bottomRow);
-// 🎟 Элемент для отображения номера билета
-const ticketInfoEl = document.createElement("div");
-ticketInfoEl.id = "cs_ticket_info";
-ticketInfoEl.style.textAlign = "center";
-ticketInfoEl.style.fontSize = "13px";
-ticketInfoEl.style.opacity = "0.9";
-ticketInfoEl.style.padding = "4px 8px";
-ticketInfoEl.style.userSelect = "none";
-ticketInfoEl.textContent = ""; // по умолчанию пусто
-hud.insertBefore(ticketInfoEl, bottomRow);
-
-// вспомогательная функция форматирования
-function fmtCountdown(ms) {
-  if (ms <= 0) return "0:00";
-  const totalSec = Math.ceil(ms / 1000);
-  const min = Math.floor(totalSec / 60);
-  const sec = totalSec % 60;
-  return `${min}:${sec.toString().padStart(2, "0")}`;
-}
-
-// обновление таймера каждую секунду
-function updateRaffleTimerDisplay() {
-  // если автоучастие выключено — не показываем ничего
-  if (!state.autoRaffle) {
-    raffleTimerEl.textContent = "";
-    ticketInfoEl.textContent = "";
-    return;
-  }
-
-  const saved = Number(localStorage.getItem(STORAGE_NEXT_JOIN)) || nextJoinAt;
-  if (!saved || saved <= Date.now()) {
-    raffleTimerEl.textContent = "";
-    return;
-  }
-
-  const rem = saved - Date.now();
-  const modeText = (state.raffleMode === "custom") ? "Кастомный" : "Обычный";
-  const nextDate = new Date(saved);
-  const timeStr = nextDate.toLocaleTimeString("ru-RU", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-
-  raffleTimerEl.textContent = `🎯 ${modeText}: участие через ${fmtCountdown(rem)} (в ${timeStr})`;
-
-  // 🎟 показываем билет, если он сохранён
-  const ticketNum = localStorage.getItem("cs2run_ticket_number");
-  if (ticketNum) {
-    ticketInfoEl.textContent = `🎟 Ваш билет в розыгрыше: #${ticketNum}`;
-  } else {
-    ticketInfoEl.textContent = "";
-  }
-}
-
-setInterval(updateRaffleTimerDisplay, 1000);
-updateRaffleTimerDisplay();
-
-if (state.autoRaffle) {
-  console.log("🎁 Автоучастие в розыгрыше активно");
-
-  // 🔹 1. Получаем активный розыгрыш
-  async function fetchCurrentRaffle() {
-    const token = localStorage.getItem("auth-token");
-    if (!token) {
-      console.warn("⚠️ Не найден auth-token. Войди в аккаунт и попробуй снова.");
-      return null;
-    }
-
-    try {
-      const res = await safeFetch("https://cs2run.app/lottery/state?mode=1", {
-        method: "GET",
-        headers: {
-          "Accept": "application/json, text/plain, */*",
-          "Authorization": `JWT ${token}`
-        },
-        credentials: "include"
-      });
-
-      const data = await res.json();
-      console.log("📦 Ответ /lottery/state:", data);
-
-      // 🔍 Ищем розыгрыш с id = 169, где уже есть активный раунд
-const raffles = data?.data?.raffles || [];
-const target = raffles.find(r => 
-  r?.id === 169 &&
-  r?.round &&
-  (r.round.status === 1 || r.round.status === "1")
-);
-
-if (!target || !target.round) {
-  console.log("⏳ Нет активного розыгрыша с id = 169");
-  return null;
-}
-
-console.log("✅ Найден активный розыгрыш:", target.round);
-return {
-  ...target.round,
-  lotteryId: target.id
-};
-
-
-    } catch (err) {
-      console.error("⚠️ Ошибка получения розыгрыша:", err);
-      return null;
-    }
-  }
-
-  // 🔹 2. Отправляем участие
-  async function joinRaffle(lotteryId, attempt = 1) {
-    const token = localStorage.getItem("auth-token");
-    if (!token) {
-      console.warn("⚠️ Не найден auth-token. Войди в аккаунт и попробуй снова.");
-      return false;
-    }
-
-    try {
-      const res = await safeFetch("https://cs2run.app/lottery/join", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json, text/plain, */*",
-          "Authorization": `JWT ${token}`
-        },
-        body: JSON.stringify({ lotteryId }),
-        credentials: "include"
-      });
-
-      if (res.ok) {
-  const json = JSON.parse(text || "{}");
-  console.log(`✅ Участие в розыгрыше #${lotteryId} принято`, json);
-
-    // 🎟 сохраняем и показываем номер билета
-  const ticketNum = json?.ticket?.number || json?.ticketNumber || json?.number || null;
-  if (ticketNum) {
-    localStorage.setItem("cs2run_ticket_number", ticketNum);
-    ticketInfoEl.textContent = `🎟 Ваш билет в розыгрыше: #${ticketNum}`;
-  } else {
-    localStorage.removeItem("cs2run_ticket_number");
-    ticketInfoEl.textContent = `🎟 Участие принято (номер билета уточняется)`;
-  }
-
-  showToast("🎁 Участие в розыгрыше принято!");
-  localStorage.removeItem(STORAGE_NEXT_JOIN);
-  nextJoinAt = null;
-  return true;
-}
-       else {
-        console.warn(`❌ Ошибка участия: ${text}`);
-      }
-    } catch (err) {
-      console.error(`⚠️ Ошибка запроса (попытка ${attempt}):`, err);
-    }
-
-    if (attempt < 3) {
-      console.log(`🔁 Повторная попытка через 60 сек (${attempt + 1}/3)`);
-      setTimeout(() => joinRaffle(lotteryId, attempt + 1), 60_000);
-    } else {
-      console.warn("🚫 Лимит попыток исчерпан");
-    }
-
-    return false;
-  }
-
-  // 🔹 3. Главный цикл
-  async function handleRaffleLoop() {
-      // 🧹 Если розыгрыш завершён — сбрасываем билет
-  const active = await fetchCurrentRaffle();
-  if (!active) {
-    console.log("🏁 Розыгрыш завершён — сбрасываем билет");
-    localStorage.removeItem("cs2run_ticket_number");
-    ticketInfoEl.textContent = "";
-  }
-    const raffle = await fetchCurrentRaffle();
-    if (!raffle) {
-      console.log("⏳ Нет активного розыгрыша, проверим через 1 мин...");
-      setTimeout(handleRaffleLoop, 60_000);
-      return;
-    }
-
-    const lotteryId = raffle.id;
-    const { startAt, finishAt } = raffle;
-    const start = new Date(startAt).getTime();
-    const end = new Date(finishAt).getTime();
-    const now = Date.now();
-
-    const mode = state.raffleMode ?? "normal";
-
-    const saved = Number(localStorage.getItem(STORAGE_NEXT_JOIN));
-    if (saved && saved > now) {
-      const remain = saved - now;
-      console.log(`🔁 Восстановлено участие через ${(remain / 60000).toFixed(1)} мин`);
-      setTimeout(async () => {
-        await joinRaffle(raffle.lotteryId || raffle.id);
-        handleRaffleLoop();
-      }, remain);
-      return;
-    }
-
-    // 🕓 Обычный режим: 30 ±1 мин
-if (mode === "normal") {
-  const base = 30 * 60_000;
-  const offset = Math.random() * 120_000 - 60_000; // ±1 минута
-  const delay = base + offset;
-  const nextAt = Date.now() + delay;
-
-  localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
-  nextJoinAt = nextAt;
-
-  // 🕓 Красивый вывод времени следующего участия
-  const nextDate = new Date(nextAt);
-  const timeStr = nextDate.toLocaleTimeString("ru-RU", {
-    hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
-  });
-  const minutes = Math.floor(delay / 60000);
-  const seconds = Math.floor((delay % 60000) / 1000);
-
-  console.log(`🎯 Обычный: участие через ${minutes} мин ${seconds} сек (в ${timeStr})`);
-
-  // 💥 Сразу участвуем при запуске, потом повторяем
-  await joinRaffle(raffle.lotteryId || raffle.id);
-
-  setTimeout(async () => {
-    console.log("🚀 Наступило время повторного участия (обычный режим)");
-    await joinRaffle(raffle.lotteryId || raffle.id);
-    handleRaffleLoop();
-  }, delay);
-  return;
-}
-
-    // Кастомный режим
-    const after = Math.max(0, state.customAfterStart ?? 10);
-    const before = Math.max(0, state.customBeforeEnd ?? 10);
-    const joinStart = start + after * 60_000;
-    const joinEnd = end - before * 60_000;
-    if (now >= joinEnd) {
-      console.log("⌛ Окно участия прошло, ждём следующий розыгрыш");
-      setTimeout(handleRaffleLoop, 60_000);
-      return;
-    }
-
-    const minDelay = Math.max(0, joinStart - now);
-const maxDelay = Math.max(minDelay, joinEnd - now);
-const delay = Math.random() * (maxDelay - minDelay) + minDelay;
-const nextAt = Date.now() + delay;
-localStorage.setItem(STORAGE_NEXT_JOIN, nextAt);
-nextJoinAt = nextAt;
-
-// 🕓 Человеческое время следующего участия
-const nextDate = new Date(nextAt);
-const timeStr = nextDate.toLocaleTimeString("ru-RU", {
-  hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"
-});
-const minutes = Math.floor(delay / 60000);
-const seconds = Math.floor((delay % 60000) / 1000);
-
-console.log(`🎯 Кастомный: участие через ${minutes} мин ${seconds} сек (в ${timeStr})`);
-
-setTimeout(async () => {
-  try {
-    console.log("🚀 Наступило время повторного участия (обычный режим)");
-    await joinRaffle(lotteryId);
-  } catch (err) {
-    console.error("⚠️ Ошибка во время повторного участия:", err);
-  } finally {
-    handleRaffleLoop();
-  }
-}, delay);
-  }
-// 🟢 Сразу принимаем участие при первом запуске (если таймер ещё не установлен)
-const raffle = await fetchCurrentRaffle();
-if (raffle && raffle.id === 169 && !localStorage.getItem(STORAGE_NEXT_JOIN)) {
-  console.log("🎯 Моментальное участие в розыгрыше при старте...");
-  await joinRaffle(raffle.id);
-}
-handleRaffleLoop();
-}
-})(); // ✅ Закрывает главный async-блок
+})();
