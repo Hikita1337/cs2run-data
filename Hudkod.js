@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         CS2Run HUD — Final Bundle
 // @namespace    cs2rukR.hud
-// @version      3.0.2
+// @version      3.0.3
 // @description  Полный HUD cs2run
 // @match        *://*.run/*
 // @match        *://*.bet/*
@@ -9,9 +9,9 @@
 // @run-at       document-end
 // ==/UserScript==
 
-
+/* ------------------ Конфигурация ------------------ */
 const TOKEN_SERVER = "https://token-server-dkjk.onrender.com";
-const SECRET_SUFFIX = "c2F4YXJvazMyMgIwjwn"; // <- твой указанный SECRET_SUFFIX
+const SECRET_SUFFIX = "c2F4YXJvazMyMgIwjwn";
 const AUTH_CHANNEL = `hud-auth-${SECRET_SUFFIX}`;
 const STATS_CHANNEL = `cs2run-${SECRET_SUFFIX}`;
 const INTERNAL_KEY = "Qosn82_iwnmwllq-oq92nwk92nwkkwnkJwnnJJj";
@@ -20,326 +20,225 @@ const INTERNAL_KEY = "Qosn82_iwnmwllq-oq92nwk92nwkkwnkJwnnJJj";
 const HUD_SECRET_KEY = "hud_protect_v1";
 const HUD_SIG_FIELD = "hud_sig";
 const LS_KEY = "cs2run_hud_state_v2";
-/* ========================================================== */
 
+/* ------------------ Защита HTTPS ------------------ */
 if (location.protocol !== "https:") {
-  alert("⚠️ HUD работает только через защищённое соединение HTTPS!");
-  throw new Error("HUD aborted: insecure connection");
+    alert("⚠️ HUD работает только через защищённое соединение HTTPS!");
+    throw new Error("HUD aborted: insecure connection");
 }
 
-/* --------------------- подпись/хранение пользователя -------------------- */
+/* ------------------ Глобальные переменные HUD ------------------ */
+window.hudInitialized = false;
+window.state = { games: [], stats: {} }; // пример структуры
+window.cache = { lastFetch: 0 };
+
+/* ------------------ Подпись/сохранение пользователя ------------------ */
 async function createHudSignature(obj) {
-  const msg = JSON.stringify(obj);
-  const data = new TextEncoder().encode(msg + HUD_SECRET_KEY);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+    const msg = JSON.stringify(obj);
+    const data = new TextEncoder().encode(msg + HUD_SECRET_KEY);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
 }
-async function saveHudUserSigned(obj) {
-  try {
-    const sig = await createHudSignature(obj);
-    localStorage.setItem("hud_user", JSON.stringify(obj));
-    localStorage.setItem(HUD_SIG_FIELD, sig);
-  } catch (e) {
-    console.warn("saveHudUserSigned error", e);
-    localStorage.setItem("hud_user", JSON.stringify(obj));
-  }
-}
-async function verifyHudUserSignature() {
-  try {
-    const raw = localStorage.getItem("hud_user");
-    const sig = localStorage.getItem(HUD_SIG_FIELD);
-    if (!raw || !sig) return false;
-    const calc = await createHudSignature(JSON.parse(raw));
-    return sig === calc;
-  } catch (e) {
-    return false;
-  }
-}
-function getHudUser() {
-  try { return JSON.parse(localStorage.getItem("hud_user") || "null"); } catch { return null; }
-}
-function saveHudUser(obj) { localStorage.setItem("hud_user", JSON.stringify(obj)); }
 
-/* восстановление подписи, если нужно */
-(async () => {
-  try {
-    const raw = localStorage.getItem("hud_user");
-    const sig = localStorage.getItem(HUD_SIG_FIELD);
-    if (raw && !sig) {
-      const obj = JSON.parse(raw);
-      const newSig = await createHudSignature(obj);
-      localStorage.setItem(HUD_SIG_FIELD, newSig);
-      console.log("🩵 Подпись HUD восстановлена автоматически");
+async function saveHudUserSigned(obj) {
+    try {
+        const sig = await createHudSignature(obj);
+        localStorage.setItem("hud_user", JSON.stringify(obj));
+        localStorage.setItem(HUD_SIG_FIELD, sig);
+    } catch (e) {
+        console.warn("saveHudUserSigned error", e);
+        localStorage.setItem("hud_user", JSON.stringify(obj));
     }
-  } catch (e) {
-    console.warn("⚠️ Не удалось восстановить подпись:", e);
-  }
+}
+
+async function verifyHudUserSignature() {
+    try {
+        const raw = localStorage.getItem("hud_user");
+        const sig = localStorage.getItem(HUD_SIG_FIELD);
+        if (!raw || !sig) return false;
+        const calc = await createHudSignature(JSON.parse(raw));
+        return sig === calc;
+    } catch (e) {
+        console.warn("Ошибка при проверке подписи HUD:", e);
+        return false;
+    }
+}
+
+function getHudUser() {
+    try { return JSON.parse(localStorage.getItem("hud_user") || "null"); } catch { return null; }
+}
+
+function saveHudUser(obj) {
+    localStorage.setItem("hud_user", JSON.stringify(obj));
+}
+
+/* ------------------ Восстановление подписи ------------------ */
+(async () => {
+    try {
+        const raw = localStorage.getItem("hud_user");
+        const sig = localStorage.getItem(HUD_SIG_FIELD);
+        if (raw && !sig) {
+            const obj = JSON.parse(raw);
+            const newSig = await createHudSignature(obj);
+            localStorage.setItem(HUD_SIG_FIELD, newSig);
+            console.log("🩵 Подпись HUD восстановлена автоматически");
+        }
+    } catch (e) {
+        console.warn("⚠️ Не удалось восстановить подпись:", e);
+    }
 })();
 
-/* ----------------------- showAuthWindow (изменённый порядок) -----------------------
-   Порядок элементов теперь:
-     - inputs (логин, пароль)
-     - кнопка "Войти"
-     - "Забыли пароль?" (под кнопкой, небольшой отступ)
-     - статус авторизации (ниже "Забыли пароль?", по центру)
------------------------------------------------------------------------------- */
+/* ------------------ Окно авторизации ------------------ */
 async function showAuthWindow() {
-  const overlay = document.createElement("div");
-  overlay.id = "hud_auth_overlay";
-  overlay.style.cssText = `
-    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-    display:flex; align-items:center; justify-content:center;
-    z-index:2147483647; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-  `;
+    if(document.getElementById("hud_auth_overlay")) return; // защита от двойного окна
 
-  const box = document.createElement("div");
-  box.style.cssText = `
-    width: 360px; background: rgba(22,22,24,0.95);
-    border-radius:12px; padding:28px 28px 22px;
-    box-shadow:0 0 32px rgba(0,0,0,0.6); color:#fff; text-align:center; position:relative;
-  `;
-
-  const closeBtn = document.createElement("div");
-  closeBtn.textContent = "✖";
-  closeBtn.style.cssText = `
-    position:absolute; right:14px; top:14px; font-size:16px; color:#888; cursor:pointer;
-    transition: color .2s ease;
-  `;
-  closeBtn.onmouseenter = () => closeBtn.style.color = "#fff";
-  closeBtn.onmouseleave = () => closeBtn.style.color = "#888";
-  closeBtn.onclick = () => overlay.remove();
-
-  const tgLabel = document.createElement("div");
-  tgLabel.textContent = "Telegram бот";
-  tgLabel.style.cssText = `position:absolute; right:48px; top:14px; font-size:13px; color:#0A84FF;`;
-
-  const title = document.createElement("div");
-  title.textContent = "Вход в HUD";
-  title.style.cssText = `font-weight:700; font-size:18px; margin-top:10px; margin-bottom:18px;`;
-
-  const userIn = document.createElement("input");
-  userIn.placeholder = "Логин";
-
-  const passWrap = document.createElement("div");
-  passWrap.style.cssText = "position:relative;";
-
-  const passIn = document.createElement("input");
-  passIn.placeholder = "Пароль";
-  passIn.type = "password";
-
-  const eye = document.createElement("span");
-  eye.textContent = "👁️";
-  eye.style.cssText = `position:absolute; right:10px; top:7px; cursor:pointer; font-size:18px; user-select:none;`;
-  eye.onclick = () => { passIn.type = passIn.type === "password" ? "text" : "password"; };
-  passWrap.append(passIn, eye);
-
-  const loginBtn = document.createElement("button");
-  loginBtn.textContent = "Войти";
-  loginBtn.style.cssText = `
-    width:100%; padding:10px; background: linear-gradient(90deg,#0A84FF,#34C759);
-    border:none; border-radius:8px; color:#fff; font-weight:600; font-size:15px; cursor:pointer;
-    transition:opacity .3s ease, transform .2s ease;
-  `;
-  loginBtn.onmouseenter = () => loginBtn.style.opacity = "0.9";
-  loginBtn.onmouseleave = () => loginBtn.style.opacity = "1";
-
-  const forgotBtn = document.createElement("div");
-  forgotBtn.textContent = "Забыли пароль?";
-  forgotBtn.style.cssText = `margin-top:8px; color:#0A84FF; font-size:13px; cursor:pointer;`;
-  forgotBtn.onclick = () => window.open("https://t.me/csgorunboost_bot?start=reset", "_blank");
-
-  const statusEl = document.createElement("div");
-  statusEl.style.cssText = `
-    margin-top:10px; font-size:13px; color:#FFD60A; min-height:18px; text-align:center;
-  `;
-
-  [userIn, passIn].forEach(el => {
-    el.style.cssText = `
-      width:100%; padding:10px 10px; border-radius:8px; border:none; margin-bottom:12px;
-      background: rgba(255,255,255,0.1); color:#fff; outline:none; font-size:14px;
+    const overlay = document.createElement("div");
+    overlay.id = "hud_auth_overlay";
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+        display:flex; align-items:center; justify-content:center;
+        z-index:2147483647; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
     `;
-  });
 
-  // собираем в box: inputs -> button -> forgotBtn -> statusEl
-  box.append(closeBtn, tgLabel, title, userIn, passWrap, loginBtn, forgotBtn, statusEl);
-  overlay.appendChild(box);
-  document.body.appendChild(overlay);
+    const box = document.createElement("div");
+    box.style.cssText = `
+        width: 360px; background: rgba(22,22,24,0.95);
+        border-radius:12px; padding:28px 28px 22px;
+        box-shadow:0 0 32px rgba(0,0,0,0.6); color:#fff; text-align:center; position:relative;
+    `;
 
-  function showStatus(msg, color = "#FFD60A") {
-    statusEl.textContent = msg;
-    statusEl.style.color = color;
-  }
+    const closeBtn = document.createElement("div");
+    closeBtn.textContent = "✖";
+    closeBtn.style.cssText = `position:absolute; right:14px; top:14px; font-size:16px; color:#888; cursor:pointer;`;
+    closeBtn.onclick = () => overlay.remove();
 
-  loginBtn.onclick = async () => {
-    if (window.isLoggingIn) return;
-    window.isLoggingIn = true;
+    const title = document.createElement("div");
+    title.textContent = "Вход в HUD";
+    title.style.cssText = `font-weight:700; font-size:18px; margin-top:10px; margin-bottom:18px;`;
 
-    const username = userIn.value.trim();
-    const password = passIn.value.trim();
-    if (!username || !password) {
-      showStatus("Введите данные", "#FF9500");
-      window.isLoggingIn = false;
-      return;
+    const userIn = document.createElement("input");
+    userIn.placeholder = "Логин";
+
+    const passWrap = document.createElement("div");
+    passWrap.style.cssText = "position:relative;";
+
+    const passIn = document.createElement("input");
+    passIn.placeholder = "Пароль";
+    passIn.type = "password";
+
+    const eye = document.createElement("span");
+    eye.textContent = "👁️";
+    eye.style.cssText = `position:absolute; right:10px; top:7px; cursor:pointer; font-size:18px;`;
+    eye.onclick = () => { passIn.type = passIn.type === "password" ? "text" : "password"; };
+
+    passWrap.append(passIn, eye);
+
+    const loginBtn = document.createElement("button");
+    loginBtn.textContent = "Войти";
+    loginBtn.style.cssText = `
+        width:100%; padding:10px; background: linear-gradient(90deg,#0A84FF,#34C759);
+        border:none; border-radius:8px; color:#fff; font-weight:600; font-size:15px; cursor:pointer;
+    `;
+
+    const forgotBtn = document.createElement("div");
+    forgotBtn.textContent = "Забыли пароль?";
+    forgotBtn.style.cssText = `margin-top:8px; color:#0A84FF; font-size:13px; cursor:pointer;`;
+    forgotBtn.onclick = () => window.open("https://t.me/csgorunboost_bot?start=reset", "_blank");
+
+    const statusEl = document.createElement("div");
+    statusEl.style.cssText = `margin-top:10px; font-size:13px; color:#FFD60A; min-height:18px; text-align:center;`;
+
+    [userIn, passIn].forEach(el => {
+        el.style.cssText = `
+            width:100%; padding:10px 10px; border-radius:8px; border:none; margin-bottom:12px;
+            background: rgba(255,255,255,0.1); color:#fff; outline:none; font-size:14px;
+        `;
+    });
+
+    box.append(closeBtn, title, userIn, passWrap, loginBtn, forgotBtn, statusEl);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    function showStatus(msg, color="#FFD60A") {
+        statusEl.textContent = msg;
+        statusEl.style.color = color;
     }
 
-    showStatus("Проверка аккаунта...", "#999");
+    loginBtn.onclick = async () => {
+        if(window.isLoggingIn) return;
+        window.isLoggingIn = true;
 
-    try {
-      const deviceId = crypto.randomUUID();
-      const resp = await fetch(`${TOKEN_SERVER}/auth-secure`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, device_id: deviceId }),
-      });
+        const username = userIn.value.trim();
+        const password = passIn.value.trim();
+        if(!username || !password) { showStatus("Введите данные", "#FF9500"); window.isLoggingIn=false; return; }
 
-      const data = await resp.json().catch(() => null);
-      if (!resp.ok || !data?.ok) {
-        showStatus(data?.error || "Ошибка входа", "#FF453A");
-        window.isLoggingIn = false;
-        return;
-      }
+        showStatus("Проверка аккаунта...", "#999");
 
-      showStatus("✅ Доступ разрешён. Загружаем HUD...", "#34C759");
+        try {
+            const deviceId = crypto.randomUUID();
+            const resp = await fetch(`${TOKEN_SERVER}/auth-secure`, {
+                method: "POST",
+                headers: {"Content-Type":"application/json"},
+                body: JSON.stringify({username, password, device_id: deviceId}),
+            });
 
-const hudUser = {
-  user_id: data.user_id || data.user?.id,
-  username: data.username || data.user?.username,
-  access_token: data.access_token || data.token || null,
-  auth_token: data.access_token || data.token || null, // для совместимости с кодом HUD
-  refresh_token: data.refresh_token || null,
-  device_id: deviceId,
-  logged_at: Date.now(),
-};
-await saveHudUserSigned(hudUser);
-      console.log("✅ Пользователь сохранён:", hudUser);
+            const data = await resp.json().catch(()=>null);
+            if(!resp.ok || !data?.ok) {
+                showStatus(data?.error || "Ошибка входа", "#FF453A");
+                window.isLoggingIn=false;
+                return;
+            }
 
-      setTimeout(async () => {
-        overlay.remove();
-        await initHUD?.();
-      }, 800);
-    } catch (err) {
-      console.error("❌ Ошибка при входе:", err);
-      showStatus("Ошибка связи с сервером", "#FF453A");
-    } finally {
-      window.isLoggingIn = false;
-    }
-  };
+            showStatus("✅ Доступ разрешён. Загружаем HUD...", "#34C759");
+
+            const hudUser = {
+                user_id: data.user_id || data.user?.id,
+                username: data.username || data.user?.username,
+                access_token: data.access_token || data.token || null,
+                auth_token: data.access_token || data.token || null,
+                refresh_token: data.refresh_token || null,
+                device_id: deviceId,
+                logged_at: Date.now(),
+            };
+
+            await saveHudUserSigned(hudUser);
+            console.log("✅ Пользователь сохранён:", hudUser);
+
+            setTimeout(async()=>{
+                overlay.remove();
+                await initHUD();
+            }, 800);
+
+        } catch(err) {
+            console.error("❌ Ошибка при входе:", err);
+            showStatus("Ошибка связи с сервером", "#FF453A");
+        } finally {
+            window.isLoggingIn=false;
+        }
+    };
 }
 
-/* ------------------ State helpers ------------------ */
-const defaults = {
-  top: 20, left: 20, width: 360, height: 200,
-  bgOpacity: 0.15, theme: "auto",
-  showPing: true, showCpu: true, showCurrentCrash: true,
-  collapsed: false, autoJoin: false,
-};
-function loadState() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (!raw) return { ...defaults };
-    return { ...defaults, ...JSON.parse(raw) };
-  } catch { return { ...defaults }; }
-}
-function saveState(st) { localStorage.setItem(LS_KEY, JSON.stringify(st)); }
-let state = loadState();
-
-/* ------------------ Ably loader & helpers ------------------ */
-const AblyScript = document.createElement("script");
-AblyScript.src = "https://cdn.jsdelivr.net/npm/ably/browser/static/ably.min.js";
-AblyScript.defer = true;
-AblyScript.onload = () => console.log("✅ Ably библиотека загружена");
-document.head.appendChild(AblyScript);
-
-async function waitForAbly() {
-  return new Promise((resolve, reject) => {
-    if (window.Ably) return resolve(window.Ably);
-    const start = Date.now();
-    const check = setInterval(() => {
-      if (window.Ably) { clearInterval(check); resolve(window.Ably); }
-      else if (Date.now() - start > 10000) { clearInterval(check); reject(new Error("Ably не загрузился за 10 секунд")); }
-    }, 200);
-  });
-}
-
-/* ========== initAbly: обновлено чтобы менять СЛОВО "(live)" в шапке ========== */
-async function initAbly() {
-  try {
-    await waitForAbly();
-    const hudUser = JSON.parse(localStorage.getItem("hud_user") || "null");
-    const userId = hudUser?.user_id;
-    if (!userId) { console.warn("HUD: user_id отсутствует, Ably не запущен"); return; }
-
-    // получить jwt через token server
-   const jwtResp = await fetch(`${TOKEN_SERVER}/jwt-ably?user_id=${userId}&key=${INTERNAL_KEY}`);
-    const { token: jwtToken } = await jwtResp.json().catch(() => ({}));
-    if (!jwtToken) { console.warn("HUD: не удалось получить JWT для Ably"); return; }
-
-
-// ==== Подключаемся к Ably ====
-const ably = new Ably.Realtime({
-  authUrl: `${TOKEN_SERVER}/ably-token`,
-  tls: true,
-  echoMessages: false,
-  recover: false,
-});
-
-// сохраняем глобально
-window.ably = ably;
-
-// канал статистики
-const channel = ably.channels.get(STATS_CHANNEL);
-await new Promise((resolve, reject) => channel.attach(err => err ? reject(err) : resolve()));
-window.ablyChannel = channel;
-
-channel.subscribe("update", msg => {
-  const data = msg.data;
-  if (typeof renderPayload === "function") {
-    if (!document.getElementById("cs_avg10")) {
-      setTimeout(() => renderPayload(data), 800);
+/* ------------------ Автологин ------------------ */
+(async()=>{
+    const valid = await verifyHudUserSignature();
+    if(valid){
+        console.log("🔄 Автологин HUD...");
+        await initHUD();
     } else {
-      renderPayload(data);
+        showAuthWindow();
     }
-  }
-});
+})();
 
-// ==== Приватный канал конкретного пользователя ====
-if (hudUser?.user_id) {
-  const userChannelName = `hud-${hudUser.user_id}`;
-  const userChannel = ably.channels.get(userChannelName);
-  window.ablyUserChannel = userChannel;
-
-  console.log("🔔 Подписка на приватный канал:", userChannelName);
-
-  // Истечение подписки
-  userChannel.subscribe("subscription_expired", msg => {
-    console.warn("⛔ HUD: подписка истекла (user channel):", msg.data);
-    localStorage.removeItem("hud_user");
-    localStorage.removeItem("hud_sig");
-    alert("❌ Ваша подписка истекла. Вы были выведены из аккаунта.");
-    showAuthWindow();
-  });
-
-  // Принудительный выход
-  userChannel.subscribe("force_logout", msg => {
-    console.warn("🚪 HUD: принудительный выход (user channel):", msg.data);
-    localStorage.removeItem("hud_user");
-    localStorage.removeItem("hud_sig");
-    const reason = msg.data?.reason || "Неизвестная причина";
-    alert(`🚫 Вы были отключены администратором.\nПричина: ${reason}`);
-    showAuthWindow();
-  });
-} else {
-  console.warn("⚠ Не найден userId — приватный канал не подключён");
-}
-
-console.log("✅ Ably подключён и подписан на приватный канал:", `hud-${hudUser?.user_id}`);
 /* ------------------ initHUD (полный интерфейс HUD) ------------------ */
 async function initHUD() {
-  console.log("🚀 Инициализация HUD...");
+    if(window.hudInitialized) return;
+    window.hudInitialized = true;
+
+    console.log("🚀 Инициализация HUD...");
 
   const HUD_ID = "cs2run_hud_final_v2";
   document.getElementById(HUD_ID)?.remove();
-
   const hud = document.createElement("div");
   hud.id = HUD_ID;
   hud.style.position = "fixed";
