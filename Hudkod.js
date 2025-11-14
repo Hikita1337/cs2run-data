@@ -1,15 +1,14 @@
 // ==UserScript==
-// @name         CS2Run HUD — Final Bundle
-// @namespace    cs2rukR.hud
-// @version      3.0.3
-// @description  Полный HUD cs2run
+// @name         CS2Run HUD —
+// @namespace    csrukR.hud
+// @version      3.03
+// @description  Полный HUD k
 // @match        *://*.run/*
 // @match        *://*.bet/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
 
-/* ------------------ Конфигурация ------------------ */
 const TOKEN_SERVER = "https://token-server-dkjk.onrender.com";
 const SECRET_SUFFIX = "c2F4YXJvazMyMgIwjwn";
 const AUTH_CHANNEL = `hud-auth-${SECRET_SUFFIX}`;
@@ -20,225 +19,237 @@ const INTERNAL_KEY = "Qosn82_iwnmwllq-oq92nwk92nwkkwnkJwnnJJj";
 const HUD_SECRET_KEY = "hud_protect_v1";
 const HUD_SIG_FIELD = "hud_sig";
 const LS_KEY = "cs2run_hud_state_v2";
+/* ========================================================== */
 
-/* ------------------ Защита HTTPS ------------------ */
-if (location.protocol !== "https:") {
-    alert("⚠️ HUD работает только через защищённое соединение HTTPS!");
-    throw new Error("HUD aborted: insecure connection");
+/* ------------------- состояние HUD ------------------- */
+const defaults = {
+  showStats: true,
+  theme: "dark",
+  windowPos: { x: 100, y: 100 },
+};
+let state = { ...defaults };
+
+function loadState() {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) state = JSON.parse(saved);
+  } catch (e) {
+    console.warn("Ошибка при загрузке состояния HUD:", e);
+  }
 }
 
-/* ------------------ Глобальные переменные HUD ------------------ */
-window.hudInitialized = false;
-window.state = { games: [], stats: {} }; // пример структуры
-window.cache = { lastFetch: 0 };
+function saveState() {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("Ошибка при сохранении состояния HUD:", e);
+  }
+}
 
-/* ------------------ Подпись/сохранение пользователя ------------------ */
+loadState();
+
+/* --------------------- подпись/хранение пользователя -------------------- */
 async function createHudSignature(obj) {
-    const msg = JSON.stringify(obj);
-    const data = new TextEncoder().encode(msg + HUD_SECRET_KEY);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    return Array.from(new Uint8Array(hashBuffer))
-        .map(b => b.toString(16).padStart(2, "0")).join("");
+  const msg = JSON.stringify(obj);
+  const data = new TextEncoder().encode(msg + HUD_SECRET_KEY);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function saveHudUserSigned(obj) {
-    try {
-        const sig = await createHudSignature(obj);
-        localStorage.setItem("hud_user", JSON.stringify(obj));
-        localStorage.setItem(HUD_SIG_FIELD, sig);
-    } catch (e) {
-        console.warn("saveHudUserSigned error", e);
-        localStorage.setItem("hud_user", JSON.stringify(obj));
-    }
+  try {
+    const sig = await createHudSignature(obj);
+    localStorage.setItem("hud_user", JSON.stringify(obj));
+    localStorage.setItem(HUD_SIG_FIELD, sig);
+  } catch (e) {
+    console.warn("saveHudUserSigned error", e);
+    localStorage.setItem("hud_user", JSON.stringify(obj));
+  }
 }
 
-async function verifyHudUserSignature() {
-    try {
-        const raw = localStorage.getItem("hud_user");
-        const sig = localStorage.getItem(HUD_SIG_FIELD);
-        if (!raw || !sig) return false;
-        const calc = await createHudSignature(JSON.parse(raw));
-        return sig === calc;
-    } catch (e) {
-        console.warn("Ошибка при проверке подписи HUD:", e);
-        return false;
-    }
+async function verifyHudUserSignatureSafe() {
+  try {
+    const raw = localStorage.getItem("hud_user");
+    const sig = localStorage.getItem(HUD_SIG_FIELD);
+    if (!raw || !sig) return false;
+    const calc = await createHudSignature(JSON.parse(raw));
+    return sig === calc;
+  } catch (e) {
+    console.warn("Ошибка при проверке подписи HUD:", e);
+    return false;
+  }
 }
 
 function getHudUser() {
-    try { return JSON.parse(localStorage.getItem("hud_user") || "null"); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem("hud_user") || "null"); } catch { return null; }
 }
 
-function saveHudUser(obj) {
-    localStorage.setItem("hud_user", JSON.stringify(obj));
-}
+function saveHudUser(obj) { localStorage.setItem("hud_user", JSON.stringify(obj)); }
 
-/* ------------------ Восстановление подписи ------------------ */
+/* восстановление подписи */
 (async () => {
-    try {
-        const raw = localStorage.getItem("hud_user");
-        const sig = localStorage.getItem(HUD_SIG_FIELD);
-        if (raw && !sig) {
-            const obj = JSON.parse(raw);
-            const newSig = await createHudSignature(obj);
-            localStorage.setItem(HUD_SIG_FIELD, newSig);
-            console.log("🩵 Подпись HUD восстановлена автоматически");
-        }
-    } catch (e) {
-        console.warn("⚠️ Не удалось восстановить подпись:", e);
+  try {
+    const raw = localStorage.getItem("hud_user");
+    const sig = localStorage.getItem(HUD_SIG_FIELD);
+    if (raw && !sig) {
+      const obj = JSON.parse(raw);
+      const newSig = await createHudSignature(obj);
+      localStorage.setItem(HUD_SIG_FIELD, newSig);
+      console.log("🩵 Подпись HUD восстановлена автоматически");
     }
+  } catch (e) {
+    console.warn("⚠️ Не удалось восстановить подпись:", e);
+  }
 })();
 
-/* ------------------ Окно авторизации ------------------ */
+/* ----------------------- showAuthWindow ----------------------- */
 async function showAuthWindow() {
-    if(document.getElementById("hud_auth_overlay")) return; // защита от двойного окна
+  if (document.getElementById("hud_auth_overlay")) return; // предотвращаем двойное окно
 
-    const overlay = document.createElement("div");
-    overlay.id = "hud_auth_overlay";
-    overlay.style.cssText = `
-        position: fixed; inset: 0; background: rgba(0,0,0,0.85);
-        display:flex; align-items:center; justify-content:center;
-        z-index:2147483647; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  const overlay = document.createElement("div");
+  overlay.id = "hud_auth_overlay";
+  overlay.style.cssText = `
+    position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center;
+    z-index:2147483647; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
+  `;
+
+  const box = document.createElement("div");
+  box.style.cssText = `
+    width: 360px; background: rgba(22,22,24,0.95);
+    border-radius:12px; padding:28px 28px 22px;
+    box-shadow:0 0 32px rgba(0,0,0,0.6); color:#fff; text-align:center; position:relative;
+  `;
+
+  const closeBtn = document.createElement("div");
+  closeBtn.textContent = "✖";
+  closeBtn.style.cssText = `
+    position:absolute; right:14px; top:14px; font-size:16px; color:#888; cursor:pointer;
+    transition: color .2s ease;
+  `;
+  closeBtn.onmouseenter = () => closeBtn.style.color = "#fff";
+  closeBtn.onmouseleave = () => closeBtn.style.color = "#888";
+  closeBtn.onclick = () => overlay.remove();
+
+  const title = document.createElement("div");
+  title.textContent = "Вход в HUD";
+  title.style.cssText = `font-weight:700; font-size:18px; margin-top:10px; margin-bottom:18px;`;
+
+  const userIn = document.createElement("input");
+  userIn.placeholder = "Логин";
+
+  const passWrap = document.createElement("div");
+  passWrap.style.cssText = "position:relative;";
+
+  const passIn = document.createElement("input");
+  passIn.placeholder = "Пароль";
+  passIn.type = "password";
+
+  const eye = document.createElement("span");
+  eye.textContent = "👁️";
+  eye.style.cssText = `position:absolute; right:10px; top:7px; cursor:pointer; font-size:18px; user-select:none;`;
+  eye.onclick = () => { passIn.type = passIn.type === "password" ? "text" : "password"; };
+  passWrap.append(passIn, eye);
+
+  const loginBtn = document.createElement("button");
+  loginBtn.textContent = "Войти";
+  loginBtn.style.cssText = `
+    width:100%; padding:10px; background: linear-gradient(90deg,#0A84FF,#34C759);
+    border:none; border-radius:8px; color:#fff; font-weight:600; font-size:15px; cursor:pointer;
+    transition:opacity .3s ease, transform .2s ease;
+  `;
+  loginBtn.onmouseenter = () => loginBtn.style.opacity = "0.9";
+  loginBtn.onmouseleave = () => loginBtn.style.opacity = "1";
+
+  const forgotBtn = document.createElement("div");
+  forgotBtn.textContent = "Забыли пароль?";
+  forgotBtn.style.cssText = `margin-top:8px; color:#0A84FF; font-size:13px; cursor:pointer;`;
+  forgotBtn.onclick = () => window.open("https://t.me/csgorunboost_bot?start=reset", "_blank");
+
+  const statusEl = document.createElement("div");
+  statusEl.style.cssText = `
+    margin-top:10px; font-size:13px; color:#FFD60A; min-height:18px; text-align:center;
+  `;
+
+  [userIn, passIn].forEach(el => {
+    el.style.cssText = `
+      width:100%; padding:10px 10px; border-radius:8px; border:none; margin-bottom:12px;
+      background: rgba(255,255,255,0.1); color:#fff; outline:none; font-size:14px;
     `;
+  });
 
-    const box = document.createElement("div");
-    box.style.cssText = `
-        width: 360px; background: rgba(22,22,24,0.95);
-        border-radius:12px; padding:28px 28px 22px;
-        box-shadow:0 0 32px rgba(0,0,0,0.6); color:#fff; text-align:center; position:relative;
-    `;
+  box.append(closeBtn, title, userIn, passWrap, loginBtn, forgotBtn, statusEl);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 
-    const closeBtn = document.createElement("div");
-    closeBtn.textContent = "✖";
-    closeBtn.style.cssText = `position:absolute; right:14px; top:14px; font-size:16px; color:#888; cursor:pointer;`;
-    closeBtn.onclick = () => overlay.remove();
+  function showStatus(msg, color = "#FFD60A") {
+    statusEl.textContent = msg;
+    statusEl.style.color = color;
+  }
 
-    const title = document.createElement("div");
-    title.textContent = "Вход в HUD";
-    title.style.cssText = `font-weight:700; font-size:18px; margin-top:10px; margin-bottom:18px;`;
+  loginBtn.onclick = async () => {
+    if (window.isLoggingIn) return;
+    window.isLoggingIn = true;
 
-    const userIn = document.createElement("input");
-    userIn.placeholder = "Логин";
-
-    const passWrap = document.createElement("div");
-    passWrap.style.cssText = "position:relative;";
-
-    const passIn = document.createElement("input");
-    passIn.placeholder = "Пароль";
-    passIn.type = "password";
-
-    const eye = document.createElement("span");
-    eye.textContent = "👁️";
-    eye.style.cssText = `position:absolute; right:10px; top:7px; cursor:pointer; font-size:18px;`;
-    eye.onclick = () => { passIn.type = passIn.type === "password" ? "text" : "password"; };
-
-    passWrap.append(passIn, eye);
-
-    const loginBtn = document.createElement("button");
-    loginBtn.textContent = "Войти";
-    loginBtn.style.cssText = `
-        width:100%; padding:10px; background: linear-gradient(90deg,#0A84FF,#34C759);
-        border:none; border-radius:8px; color:#fff; font-weight:600; font-size:15px; cursor:pointer;
-    `;
-
-    const forgotBtn = document.createElement("div");
-    forgotBtn.textContent = "Забыли пароль?";
-    forgotBtn.style.cssText = `margin-top:8px; color:#0A84FF; font-size:13px; cursor:pointer;`;
-    forgotBtn.onclick = () => window.open("https://t.me/csgorunboost_bot?start=reset", "_blank");
-
-    const statusEl = document.createElement("div");
-    statusEl.style.cssText = `margin-top:10px; font-size:13px; color:#FFD60A; min-height:18px; text-align:center;`;
-
-    [userIn, passIn].forEach(el => {
-        el.style.cssText = `
-            width:100%; padding:10px 10px; border-radius:8px; border:none; margin-bottom:12px;
-            background: rgba(255,255,255,0.1); color:#fff; outline:none; font-size:14px;
-        `;
-    });
-
-    box.append(closeBtn, title, userIn, passWrap, loginBtn, forgotBtn, statusEl);
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-
-    function showStatus(msg, color="#FFD60A") {
-        statusEl.textContent = msg;
-        statusEl.style.color = color;
+    const username = userIn.value.trim();
+    const password = passIn.value.trim();
+    if (!username || !password) {
+      showStatus("Введите данные", "#FF9500");
+      window.isLoggingIn = false;
+      return;
     }
 
-    loginBtn.onclick = async () => {
-        if(window.isLoggingIn) return;
-        window.isLoggingIn = true;
+    showStatus("Проверка аккаунта...", "#999");
 
-        const username = userIn.value.trim();
-        const password = passIn.value.trim();
-        if(!username || !password) { showStatus("Введите данные", "#FF9500"); window.isLoggingIn=false; return; }
+    try {
+      const deviceId = crypto.randomUUID();
+      const resp = await fetch(`${TOKEN_SERVER}/auth-secure`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, device_id: deviceId }),
+      });
 
-        showStatus("Проверка аккаунта...", "#999");
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok || !data?.ok) {
+        showStatus(data?.error || "Ошибка входа", "#FF453A");
+        window.isLoggingIn = false;
+        return;
+      }
 
-        try {
-            const deviceId = crypto.randomUUID();
-            const resp = await fetch(`${TOKEN_SERVER}/auth-secure`, {
-                method: "POST",
-                headers: {"Content-Type":"application/json"},
-                body: JSON.stringify({username, password, device_id: deviceId}),
-            });
+      showStatus("✅ Доступ разрешён. Загружаем HUD...", "#34C759");
 
-            const data = await resp.json().catch(()=>null);
-            if(!resp.ok || !data?.ok) {
-                showStatus(data?.error || "Ошибка входа", "#FF453A");
-                window.isLoggingIn=false;
-                return;
-            }
+      const hudUser = {
+        user_id: data.user_id || data.user?.id,
+        username: data.username || data.user?.username,
+        access_token: data.access_token || data.token || null,
+        auth_token: data.access_token || data.token || null,
+        refresh_token: data.refresh_token || null,
+        device_id: deviceId,
+        logged_at: Date.now(),
+      };
+      await saveHudUserSigned(hudUser);
+      console.log("✅ Пользователь сохранён:", hudUser);
 
-            showStatus("✅ Доступ разрешён. Загружаем HUD...", "#34C759");
-
-            const hudUser = {
-                user_id: data.user_id || data.user?.id,
-                username: data.username || data.user?.username,
-                access_token: data.access_token || data.token || null,
-                auth_token: data.access_token || data.token || null,
-                refresh_token: data.refresh_token || null,
-                device_id: deviceId,
-                logged_at: Date.now(),
-            };
-
-            await saveHudUserSigned(hudUser);
-            console.log("✅ Пользователь сохранён:", hudUser);
-
-            setTimeout(async()=>{
-                overlay.remove();
-                await initHUD();
-            }, 800);
-
-        } catch(err) {
-            console.error("❌ Ошибка при входе:", err);
-            showStatus("Ошибка связи с сервером", "#FF453A");
-        } finally {
-            window.isLoggingIn=false;
-        }
-    };
+      setTimeout(async () => {
+        overlay.remove();
+        await initHUD?.();
+      }, 800);
+    } catch (err) {
+      console.error("❌ Ошибка при входе:", err);
+      showStatus("Ошибка связи с сервером", "#FF453A");
+    } finally {
+      window.isLoggingIn = false;
+    }
+  };
 }
-
-/* ------------------ Автологин ------------------ */
-(async()=>{
-    const valid = await verifyHudUserSignature();
-    if(valid){
-        console.log("🔄 Автологин HUD...");
-        await initHUD();
-    } else {
-        showAuthWindow();
-    }
-})();
 
 /* ------------------ initHUD (полный интерфейс HUD) ------------------ */
 async function initHUD() {
-    if(window.hudInitialized) return;
-    window.hudInitialized = true;
-
-    console.log("🚀 Инициализация HUD...");
+  console.log("🚀 Инициализация HUD...");
 
   const HUD_ID = "cs2run_hud_final_v2";
   document.getElementById(HUD_ID)?.remove();
+
   const hud = document.createElement("div");
   hud.id = HUD_ID;
   hud.style.position = "fixed";
@@ -1071,6 +1082,15 @@ if (user.refresh_token && user.device_id) {
     console.error("Ошибка автологина:", err);
   }
 })();
-
+/* ------------------ автологин при старте ------------------ */
+(async () => {
+  const verified = await verifyHudUserSignatureSafe();
+  if (verified) {
+    console.log("🔄 Автологин успешен");
+    await initHUD?.();
+  } else {
+    showAuthWindow();
+  }
+})();
 /* финальная информация */
 console.log("✅ Userscript loaded — полный HUD готов (проверь консоль для логов).");
