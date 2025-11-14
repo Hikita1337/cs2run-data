@@ -308,36 +308,52 @@ window.ably = ably;
 const authChannel = ably.channels.get(AUTH_CHANNEL);
 window.ablyAuthChannel = authChannel;
 
-// Обработка истечения подписки
-authChannel.subscribe("subscription_expired", msg => {
-  console.warn("⛔ Подписка истекла:", msg.data);
+// === Приватный пользовательский канал ===
+const hudUserRaw = localStorage.getItem("hud_user");
+let hudUser = null;
 
-  // Удаляем данные пользователя из localStorage
-  localStorage.removeItem("hud_user");
+try {
+  hudUser = JSON.parse(hudUserRaw || "null");
+} catch (e) {
+  console.error("❌ Ошибка парсинга hud_user:", e);
+}
 
-  // Очищаем HUD и показываем окно авторизации
-  alert("❌ Подписка истекла. Требуется новый вход.");
-  showAuthWindow();  // Показать окно входа
-});
+const userId = hudUser?.user_id;
+if (userId) {
+  const userChannelName = `hud-${userId}`;
+  const userChannel = ably.channels.get(userChannelName);
+  window.ablyUserChannel = userChannel;
 
-// Обработка принудительного выхода
-authChannel.subscribe("force_logout", msg => {
-  console.warn("🚪 Принудительный выход:", msg.data);
+  console.log("🔔 Подписка на приватный канал:", userChannelName);
 
-  // Удаляем данные пользователя из localStorage
-  localStorage.removeItem("hud_user");
+  // Истечение подписки (только для этого пользователя)
+  userChannel.subscribe("subscription_expired", msg => {
+    console.warn("⛔ HUD: подписка истекла (user channel):", msg.data);
 
-  // Очищаем HUD и показываем окно авторизации
-  const reason = msg.data?.reason || "Неизвестная причина";
-  alert(`🚫 Вы были отключены администратором.\nПричина: ${reason}`);
-  showAuthWindow();  // Показать окно входа
-});
-    console.log("✅ Ably подключён и подписан на каналы:", STATS_CHANNEL, AUTH_CHANNEL);
-  } catch (err) {
-    console.error("❌ Ошибка initAbly:", err);
-  } finally {
-  }
-} 
+    localStorage.removeItem("hud_user");
+    localStorage.removeItem("hud_sig");
+
+    alert("❌ Ваша подписка истекла. Вы были выведены из аккаунта.");
+    showAuthWindow();
+  });
+
+  // Принудительный выход (только для этого пользователя)
+  userChannel.subscribe("force_logout", msg => {
+    console.warn("🚪 HUD: принудительный выход (user channel):", msg.data);
+
+    localStorage.removeItem("hud_user");
+    localStorage.removeItem("hud_sig");
+
+    const reason = msg.data?.reason || "Неизвестная причина";
+    alert(`🚫 Вы были отключены администратором.\nПричина: ${reason}`);
+    showAuthWindow();
+  });
+
+} else {
+  console.warn("⚠ Не найден userId — приватный канал не подключён");
+}
+
+console.log("✅ Ably подключён и подписан на приватный канал:", `hud-${userId}`);
 
 /* ------------------ initHUD (полный интерфейс HUD) ------------------ */
 async function initHUD() {
