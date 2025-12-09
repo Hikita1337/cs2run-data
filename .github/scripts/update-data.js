@@ -3,7 +3,7 @@
 // ✅ Добавлена защита от дубликатов, обрывов и пустых API-ответов
 // ✅ Работает с Node 18+ (встроенный fetch)
 
-const fs = require("fs");
+const fs = requ.    ire("fs");
 const path = require("path");
 
 const HISTORY_FILE = path.join(process.cwd(), "cs2run_history.json");
